@@ -13,7 +13,7 @@ A Flutter Android app that tracks motorcycle oil changes. Enter current mileage,
 
 ## Tech Stack
 - Flutter + Provider (MVVM)
-- shared_preferences for persistence
+- Firebase Auth (anonymous) + Firestore for persistence
 - flutter_local_notifications for local notifications
 - workmanager for background execution
 - google_mlkit_text_recognition + image_picker for OCR

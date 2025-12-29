@@ -57,6 +57,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    if (viewModel.lastError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(viewModel.lastError!)),
+      );
+    }
+
     FocusScope.of(context).unfocus();
   }
 
@@ -448,12 +454,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                         Row(
                                           children: [
                                             Expanded(
-                                              child: ElevatedButton(
-                                                onPressed: viewModel
+                                          child: ElevatedButton(
+                                            onPressed: viewModel
                                                         .isInitialized
-                                                    ? () => _save(viewModel)
-                                                    : null,
-                                                style: ElevatedButton.styleFrom(
+                                                    && !viewModel.isSaving
+                                                ? () => _save(viewModel)
+                                                : null,
+                                            style: ElevatedButton.styleFrom(
                                                   backgroundColor:
                                                       const Color(
                                                         AppColors.seed,
@@ -472,11 +479,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                                     ),
                                                   ),
                                                 ),
-                                                child: const Text(
-                                                  AppStrings.save,
-                                                ),
-                                              ),
-                                            ),
+                                            child: viewModel.isSaving
+                                                ? const SizedBox(
+                                                    height: 18,
+                                                    width: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Color(
+                                                        AppColors.textOnPrimary,
+                                                      ),
+                                                    ),
+                                                  )
+                                                : const Text(AppStrings.save),
+                                          ),
+                                        ),
                                             const SizedBox(width: 12),
                                             OutlinedButton(
                                           onPressed: viewModel
@@ -559,6 +576,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+              if (viewModel.isLoading)
+                const Positioned.fill(
+                  child: IgnorePointer(
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                ),
             ],
           ),
         );

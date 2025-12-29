@@ -1,4 +1,4 @@
-package com.example.oil_change
+package com.oil.change
 
 import io.flutter.embedding.android.FlutterActivity
 

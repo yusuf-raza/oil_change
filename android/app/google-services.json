@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "631473041726",
+    "project_id": "oil-change-21e9e",
+    "storage_bucket": "oil-change-21e9e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:631473041726:android:6dc41e372ba7a5b6673c6f",
+        "android_client_info": {
+          "package_name": "com.oil.change"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5EOXyETN7onN-5g_7EEEk_bgP0ercm6c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:631473041726:android:62028df8a8e33b23673c6f",
+        "android_client_info": {
+          "package_name": "om.oil.change"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5EOXyETN7onN-5g_7EEEk_bgP0ercm6c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

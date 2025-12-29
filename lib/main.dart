@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:workmanager/workmanager.dart';
@@ -8,11 +11,16 @@ import 'constants/app_strings.dart';
 import 'models/enums.dart';
 import 'services/background_tasks.dart';
 import 'services/notification_service.dart';
+import 'services/oil_repository.dart';
 import 'viewmodels/oil_view_model.dart';
 import 'views/home_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+  FirebaseFirestore.instance.settings =
+      const Settings(persistenceEnabled: true);
 
   Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
   Workmanager().registerPeriodicTask(
@@ -39,7 +47,10 @@ class OilChangeApp extends StatelessWidget {
     );
 
     return ChangeNotifierProvider(
-      create: (_) => OilViewModel(NotificationService()),
+      create: (_) => OilViewModel(
+        NotificationService(),
+        OilRepository(FirebaseFirestore.instance, FirebaseAuth.instance),
+      ),
       child: Consumer<OilViewModel>(
         builder: (context, viewModel, child) {
           final darkScheme = ColorScheme.fromSeed(

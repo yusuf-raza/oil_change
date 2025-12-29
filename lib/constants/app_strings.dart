@@ -57,4 +57,8 @@ class AppStrings {
   static const unitMilesStorage = 'miles';
 
   static const androidNotificationIcon = '@mipmap/ic_launcher';
+
+  static const firestoreUsersCollection = 'users';
+  static const firestoreOilStateCollection = 'oilState';
+  static const firestoreOilStateDoc = 'state';
 }
