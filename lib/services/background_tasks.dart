@@ -20,17 +20,11 @@ void callbackDispatcher() {
         const Settings(persistenceEnabled: true);
 
     final auth = FirebaseAuth.instance;
-    if (auth.currentUser == null) {
-      try {
-        await auth.signInAnonymously();
-      } catch (_) {
-        return Future.value(true);
-      }
-    }
-    final uid = auth.currentUser?.uid;
-    if (uid == null) {
+    final user = auth.currentUser;
+    if (user == null || user.isAnonymous) {
       return Future.value(true);
     }
+    final uid = user.uid;
 
     final docRef = FirebaseFirestore.instance
         .collection(AppStrings.firestoreUsersCollection)

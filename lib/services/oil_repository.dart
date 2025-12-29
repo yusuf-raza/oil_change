@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import '../constants/app_strings.dart';
+import 'app_logger.dart';
 import 'oil_storage.dart';
 
 class OilRepository {
@@ -9,14 +9,18 @@ class OilRepository {
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final logger = AppLogger.logger;
 
   Future<DocumentReference<Map<String, dynamic>>> _docRef() async {
     // Resolve or create the user and return the per-user oil state document.
     final currentUser = _auth.currentUser;
-    final uid = currentUser?.uid ?? (await _auth.signInAnonymously()).user?.uid;
-    if (uid == null) {
-      throw StateError('Failed to obtain user id.');
+    if (currentUser == null) {
+      throw StateError('User must be signed in.');
     }
+    if (currentUser.isAnonymous) {
+      throw StateError('Anonymous users are not supported.');
+    }
+    final uid = currentUser.uid;
     return _firestore
         .collection(AppStrings.firestoreUsersCollection)
         .doc(uid)
@@ -26,24 +30,54 @@ class OilRepository {
 
   Future<Map<String, dynamic>?> fetchState() async {
     // Fetch the current oil state snapshot for the signed-in user.
-    final doc = await _docRef();
-    final snapshot = await doc.get();
-    if (!snapshot.exists) {
-      return null;
+    try {
+      final doc = await _docRef();
+      final snapshot = await doc.get();
+      logger.i(
+        'Firestore fetchState doc=${doc.path} exists=${snapshot.exists}',
+      );
+      if (!snapshot.exists) {
+        return null;
+      }
+      return snapshot.data();
+    } on FirebaseException catch (error) {
+      logger.e(
+        'Firestore fetchState failed: ${error.code} ${error.message}',
+      );
+      rethrow;
+    } catch (error) {
+      logger.e('Firestore fetchState failed: $error');
+      rethrow;
     }
-    return snapshot.data();
   }
 
   Future<void> saveState(Map<String, dynamic> data) async {
     // Merge the provided fields into the user's oil state document.
-    final doc = await _docRef();
-    await doc.set(data, SetOptions(merge: true));
+    try {
+      final doc = await _docRef();
+      await doc.set(data, SetOptions(merge: true));
+      logger.i('Firestore saveState doc=${doc.path}');
+    } on FirebaseException catch (error) {
+      logger.e('Firestore saveState failed: ${error.code} ${error.message}');
+      rethrow;
+    } catch (error) {
+      logger.e('Firestore saveState failed: $error');
+      rethrow;
+    }
   }
 
   Future<void> clearState() async {
     // Delete the user's oil state document entirely.
-    final doc = await _docRef();
-    await doc.delete();
+    try {
+      final doc = await _docRef();
+      await doc.delete();
+    } on FirebaseException catch (error) {
+      logger.e('Firestore clearState failed: ${error.code} ${error.message}');
+      rethrow;
+    } catch (error) {
+      logger.e('Firestore clearState failed: $error');
+      rethrow;
+    }
   }
 
   static Map<String, dynamic> buildUpdateMap({

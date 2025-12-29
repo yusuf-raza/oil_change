@@ -14,6 +14,7 @@ import 'services/notification_service.dart';
 import 'services/oil_repository.dart';
 import 'viewmodels/oil_view_model.dart';
 import 'views/home_screen.dart';
+import 'views/sign_in_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,44 +46,82 @@ class OilChangeApp extends StatelessWidget {
       surface: const Color(AppColors.lightSurface),
       brightness: Brightness.light,
     );
-
-    return ChangeNotifierProvider(
-      create: (_) => OilViewModel(
-        NotificationService(),
-        OilRepository(FirebaseFirestore.instance, FirebaseAuth.instance),
+    final lightTheme = ThemeData(
+      colorScheme: colorScheme,
+      useMaterial3: true,
+      scaffoldBackgroundColor: const Color(AppColors.transparent),
+      textTheme: GoogleFonts.spaceGroteskTextTheme(),
+    );
+    final darkTheme = ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(AppColors.darkSeed),
+        brightness: Brightness.dark,
       ),
-      child: Consumer<OilViewModel>(
-        builder: (context, viewModel, child) {
-          final darkScheme = ColorScheme.fromSeed(
-            seedColor: const Color(AppColors.darkSeed),
-            brightness: Brightness.dark,
-          );
-          final themeMode = viewModel.themeMode == AppThemeMode.dark
-              ? ThemeMode.dark
-              : ThemeMode.light;
+      useMaterial3: true,
+      scaffoldBackgroundColor: const Color(AppColors.transparent),
+      textTheme: GoogleFonts.spaceGroteskTextTheme(
+        ThemeData(brightness: Brightness.dark).textTheme,
+      ),
+    );
 
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return MaterialApp(
             title: AppStrings.appTitle,
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorScheme: colorScheme,
-              useMaterial3: true,
-              scaffoldBackgroundColor: const Color(AppColors.transparent),
-              textTheme: GoogleFonts.spaceGroteskTextTheme(),
-            ),
-            darkTheme: ThemeData(
-              colorScheme: darkScheme,
-              useMaterial3: true,
-              scaffoldBackgroundColor: const Color(AppColors.transparent),
-              textTheme: GoogleFonts.spaceGroteskTextTheme(
-                ThemeData(brightness: Brightness.dark).textTheme,
-              ),
-            ),
-            themeMode: themeMode,
-            home: const HomeScreen(),
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            home: const _AuthLoadingScreen(),
           );
-        },
-      ),
+        }
+
+        final user = snapshot.data;
+        if (user == null || user.isAnonymous) {
+          return MaterialApp(
+            title: AppStrings.appTitle,
+            debugShowCheckedModeBanner: false,
+            theme: lightTheme,
+            darkTheme: darkTheme,
+            home: SignInScreen(),
+          );
+        }
+
+        return ChangeNotifierProvider(
+          create: (_) => OilViewModel(
+            NotificationService(),
+            OilRepository(FirebaseFirestore.instance, FirebaseAuth.instance),
+          ),
+          child: Consumer<OilViewModel>(
+            builder: (context, viewModel, child) {
+              final themeMode = viewModel.themeMode == AppThemeMode.dark
+                  ? ThemeMode.dark
+                  : ThemeMode.light;
+
+              return MaterialApp(
+                title: AppStrings.appTitle,
+                debugShowCheckedModeBanner: false,
+                theme: lightTheme,
+                darkTheme: darkTheme,
+                themeMode: themeMode,
+                home: const HomeScreen(),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AuthLoadingScreen extends StatelessWidget {
+  const _AuthLoadingScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

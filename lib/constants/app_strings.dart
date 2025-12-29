@@ -21,6 +21,11 @@ class AppStrings {
   static const scanMileageTooltip = 'Scan mileage';
   static const settingsTooltip = 'Settings';
   static const resetTooltip = 'Reset';
+  static const accountTitle = 'Account';
+  static const accountAnonymous = 'Signed in anonymously';
+  static const accountSignedIn = 'Signed in';
+  static const signInWithGoogle = 'Sign in with Google';
+  static const signOut = 'Sign out';
 
   static const currentMileageLabel = 'Current mileage';
   static const yourMileageTitle = 'Your mileage';

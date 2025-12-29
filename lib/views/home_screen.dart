@@ -4,9 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
-import '../models/enums.dart';
-import '../services/ocr_service.dart';
+import '../viewmodels/home_view_model.dart';
 import '../viewmodels/oil_view_model.dart';
+import '../widgets/home_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,289 +16,39 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _currentController = TextEditingController();
-  final _intervalController = TextEditingController();
-  final _lastChangeController = TextEditingController();
-  bool _controllersInitialized = false;
-  final _ocrService = OcrService();
+  late final HomeViewModel _homeViewModel;
 
   @override
   void initState() {
     super.initState();
+    _homeViewModel = HomeViewModel(
+      oilViewModel: context.read<OilViewModel>(),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<OilViewModel>().load();
+      _homeViewModel.ensureLoaded();
     });
   }
 
   @override
   void dispose() {
-    _currentController.dispose();
-    _intervalController.dispose();
-    _lastChangeController.dispose();
+    _homeViewModel.dispose();
     super.dispose();
   }
 
-  Future<void> _save(OilViewModel viewModel) async {
-    final current = int.tryParse(_currentController.text.trim());
-    final interval = int.tryParse(_intervalController.text.trim());
-    final lastChange = int.tryParse(_lastChangeController.text.trim());
-
-    if (current != null) {
-      await viewModel.updateCurrentMileage(current);
-    }
-    if (interval != null) {
-      await viewModel.updateIntervalKm(interval);
-    }
-    if (lastChange != null) {
-      await viewModel.updateLastChangeMileage(lastChange);
-    }
-
+  void _showSnack(String message) {
     if (!mounted) {
       return;
     }
-
-    if (viewModel.lastError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(viewModel.lastError!)),
-      );
-    }
-
-    FocusScope.of(context).unfocus();
-  }
-
-  Future<void> _markOilChanged(OilViewModel viewModel) async {
-    await viewModel.markOilChanged();
-    final current = int.tryParse(_currentController.text.trim()) ??
-        viewModel.currentMileage;
-    if (current != null) {
-      _lastChangeController.text = current.toString();
-    }
-  }
-
-  void _openSettings(OilViewModel viewModel) {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return Consumer<OilViewModel>(
-          builder: (context, sheetViewModel, child) {
-            return Padding(
-              padding: EdgeInsets.zero,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 48,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant
-                                .withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                  const Text(
-                    AppStrings.settingsTitle,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    AppStrings.unitsTitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  RadioListTile<OilUnit>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(AppStrings.kilometers),
-                    value: OilUnit.kilometers,
-                    groupValue: sheetViewModel.unit,
-                        onChanged: (value) {
-                          if (value != null) {
-                            sheetViewModel.updateUnit(value);
-                          }
-                        },
-                      ),
-                  RadioListTile<OilUnit>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(AppStrings.miles),
-                    value: OilUnit.miles,
-                    groupValue: sheetViewModel.unit,
-                        onChanged: (value) {
-                          if (value != null) {
-                            sheetViewModel.updateUnit(value);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                  const Text(
-                    AppStrings.themeTitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(AppStrings.notificationsTitle),
-                    value: sheetViewModel.notificationsEnabled,
-                    onChanged: (value) {
-                      sheetViewModel.updateNotificationsEnabled(value);
-                    },
-                  ),
-                  RadioListTile<AppThemeMode>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(AppStrings.light),
-                    value: AppThemeMode.light,
-                    groupValue: sheetViewModel.themeMode,
-                        onChanged: (value) {
-                          if (value != null) {
-                            sheetViewModel.updateThemeMode(value);
-                          }
-                        },
-                      ),
-                  RadioListTile<AppThemeMode>(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text(AppStrings.dark),
-                    value: AppThemeMode.dark,
-                    groupValue: sheetViewModel.themeMode,
-                        onChanged: (value) {
-                          if (value != null) {
-                            sheetViewModel.updateThemeMode(value);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
-  }
-
-  Future<void> _confirmReset(OilViewModel viewModel) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(AppStrings.resetTitle),
-          content: const Text(AppStrings.resetBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(AppStrings.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(AppStrings.reset),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    await viewModel.resetAll();
-    _currentController.clear();
-    _intervalController.clear();
-    _lastChangeController.clear();
-    _controllersInitialized = false;
-  }
-
-  Future<void> _captureMileage(OilViewModel viewModel) async {
-    final picker = ImagePicker();
-    final photo = await picker.pickImage(
-      source: ImageSource.camera,
-      imageQuality: 85,
-    );
-    if (photo == null) {
-      return;
-    }
-
-    final detected = await _ocrService.readMileage(photo.path);
-    if (!mounted) {
-      return;
-    }
-
-    final controller = TextEditingController(
-      text: detected?.toString() ?? '',
-    );
-    final confirmed = await showDialog<int>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text(AppStrings.confirmMileageTitle),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: AppStrings.confirmMileageLabel,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(AppStrings.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final value = int.tryParse(controller.text.trim());
-                Navigator.of(context).pop(value);
-              },
-              child: const Text(AppStrings.save),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == null) {
-      return;
-    }
-
-    _currentController.text = confirmed.toString();
-    await viewModel.updateCurrentMileage(confirmed);
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<OilViewModel>(
       builder: (context, viewModel, child) {
-        if (viewModel.isInitialized && !_controllersInitialized) {
-          _currentController.text =
-              viewModel.currentMileage?.toString() ?? '';
-          _intervalController.text = viewModel.intervalKm?.toString() ?? '';
-          _lastChangeController.text =
-              viewModel.lastChangeMileage?.toString() ?? '';
-          _controllersInitialized = true;
-        }
+        _homeViewModel.syncFromState();
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final surfaceColor = isDark
@@ -319,6 +69,31 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         return Scaffold(
           backgroundColor: const Color(AppColors.transparent),
+          drawer: HomeDrawer(
+            viewModel: viewModel,
+            authService: _homeViewModel.authService,
+            onSignOut: () async {
+              if (!mounted) {
+                return;
+              }
+              showDialog<void>(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                },
+              );
+              final error = await _homeViewModel.signOut();
+              if (mounted) {
+                Navigator.of(context, rootNavigator: true).pop();
+              }
+              if (error != null) {
+                _showSnack('Sign out failed: $error');
+              }
+            },
+          ),
           body: Stack(
             children: [
               Container(
@@ -355,21 +130,62 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                   Row(
                                     children: [
+                                      Builder(
+                                        builder: (context) => IconButton(
+                                          onPressed: () =>
+                                              Scaffold.of(context).openDrawer(),
+                                          icon: const Icon(Icons.menu),
+                                          tooltip: 'Menu',
+                                        ),
+                                      ),
                                       IconButton(
-                                        onPressed: () =>
-                                            _confirmReset(viewModel),
+                                        onPressed: () async {
+                                          final error =
+                                              await _homeViewModel.confirmReset(
+                                            confirm: () {
+                                              return showDialog<bool>(
+                                                context: context,
+                                                builder: (context) {
+                                                  return AlertDialog(
+                                                    title: const Text(
+                                                      AppStrings.resetTitle,
+                                                    ),
+                                                    content: const Text(
+                                                      AppStrings.resetBody,
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                          context,
+                                                        ).pop(false),
+                                                        child: const Text(
+                                                          AppStrings.cancel,
+                                                        ),
+                                                      ),
+                                                      ElevatedButton(
+                                                        onPressed: () =>
+                                                            Navigator.of(
+                                                          context,
+                                                        ).pop(true),
+                                                        child: const Text(
+                                                          AppStrings.reset,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
+                                          );
+                                          if (error != null) {
+                                            _showSnack(error);
+                                          }
+                                        },
                                         icon: const Icon(Icons.refresh),
                                         tooltip: AppStrings.resetTooltip,
                                       ),
-                                      IconButton(
-                                        onPressed: () =>
-                                            _openSettings(viewModel),
-                                        icon: const Icon(
-                                          Icons.settings_outlined,
-                                        ),
-                                        tooltip: AppStrings.settingsTooltip,
-                                      ),
-                                      _StatusPill(
+                                      StatusPill(
                                         isDue: viewModel.isDue,
                                         isWarning: viewModel.remainingKm !=
                                                 null &&
@@ -424,13 +240,92 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 12),
-                                        _MileageField(
-                                          controller: _currentController,
+                                        MileageField(
+                                          controller:
+                                              _homeViewModel.currentController,
                                           label:
                                               '${AppStrings.currentMileageLabel} (${viewModel.unitLabel})',
                                           suffixIcon: IconButton(
-                                            onPressed: () =>
-                                                _captureMileage(viewModel),
+                                            onPressed: () async {
+                                              await _homeViewModel
+                                                  .captureMileage(
+                                                pickImagePath: () async {
+                                                  final picker = ImagePicker();
+                                                  final photo =
+                                                      await picker.pickImage(
+                                                    source: ImageSource.camera,
+                                                    imageQuality: 85,
+                                                  );
+                                                  return photo?.path;
+                                                },
+                                                confirmMileage:
+                                                    (detected) async {
+                                                  if (!mounted) {
+                                                    return null;
+                                                  }
+
+                                                  final controller =
+                                                      TextEditingController(
+                                                    text:
+                                                        detected?.toString() ??
+                                                            '',
+                                                  );
+                                                  final confirmed =
+                                                      await showDialog<int>(
+                                                    context: context,
+                                                    builder: (context) {
+                                                      return AlertDialog(
+                                                        title: const Text(
+                                                          AppStrings
+                                                              .confirmMileageTitle,
+                                                        ),
+                                                        content: TextField(
+                                                          controller:
+                                                              controller,
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            labelText: AppStrings
+                                                                .confirmMileageLabel,
+                                                          ),
+                                                        ),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.of(
+                                                              context,
+                                                            ).pop(),
+                                                            child: const Text(
+                                                              AppStrings
+                                                                  .cancel,
+                                                            ),
+                                                          ),
+                                                          ElevatedButton(
+                                                            onPressed: () {
+                                                              final value =
+                                                                  int.tryParse(
+                                                                controller.text
+                                                                    .trim(),
+                                                              );
+                                                              Navigator.of(
+                                                                context,
+                                                              ).pop(value);
+                                                            },
+                                                            child: const Text(
+                                                              AppStrings.save,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
+                                                  );
+                                                  controller.dispose();
+                                                  return confirmed;
+                                                },
+                                              );
+                                            },
                                             icon: const Icon(
                                               Icons.camera_alt,
                                             ),
@@ -439,14 +334,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                         ),
                                         const SizedBox(height: 16),
-                                        _MileageField(
-                                          controller: _lastChangeController,
+                                        MileageField(
+                                          controller:
+                                              _homeViewModel.lastChangeController,
                                           label:
                                               '${AppStrings.lastChangeLabel} (${viewModel.unitLabel})',
                                         ),
                                         const SizedBox(height: 16),
-                                        _MileageField(
-                                          controller: _intervalController,
+                                        MileageField(
+                                          controller:
+                                              _homeViewModel.intervalController,
                                           label:
                                               '${AppStrings.intervalLabel} (${viewModel.unitLabel})',
                                         ),
@@ -458,7 +355,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                             onPressed: viewModel
                                                         .isInitialized
                                                     && !viewModel.isSaving
-                                                ? () => _save(viewModel)
+                                                ? () async {
+                                                    final error =
+                                                        await _homeViewModel
+                                                            .save();
+                                                    if (error != null) {
+                                                      _showSnack(error);
+                                                    }
+                                                    FocusScope.of(context)
+                                                        .unfocus();
+                                                  }
                                                 : null,
                                             style: ElevatedButton.styleFrom(
                                                   backgroundColor:
@@ -500,7 +406,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       .currentMileage ==
                                                   null
                                               ? null
-                                              : () => _markOilChanged(viewModel),
+                                              : () async {
+                                                  await _homeViewModel
+                                                      .markOilChanged();
+                                                },
                                               style: OutlinedButton.styleFrom(
                                                 foregroundColor: const Color(
                                                   AppColors.seed,
@@ -525,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 24),
-                                        _MetricRow(
+                                        MetricRow(
                                           title: AppStrings.metricsLastChange,
                                           value:
                                               viewModel.lastChangeMileage ==
@@ -534,14 +443,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   : '${viewModel.lastChangeMileage} ${viewModel.unitLabel}',
                                         ),
                                         const SizedBox(height: 12),
-                                        _MetricRow(
+                                        MetricRow(
                                           title: AppStrings.metricsNextDue,
                                           value: viewModel.nextDueMileage == null
                                               ? AppStrings.placeholder
                                               : '${viewModel.nextDueMileage} ${viewModel.unitLabel}',
                                         ),
                                         const SizedBox(height: 12),
-                                        _MetricRow(
+                                        MetricRow(
                                           title: AppStrings.metricsRemaining,
                                           value: viewModel.remainingKm == null
                                               ? AppStrings.placeholder
@@ -585,183 +494,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
             ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _MileageField extends StatelessWidget {
-  const _MileageField({
-    required this.controller,
-    required this.label,
-    this.suffixIcon,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final Widget? suffixIcon;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: isDark
-            ? const Color(AppColors.darkField)
-            : const Color(AppColors.lightField),
-        suffixIcon: suffixIcon,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricRow extends StatelessWidget {
-  const _MetricRow({
-    required this.title,
-    required this.value,
-    this.highlight = false,
-  });
-
-  final String title;
-  final String value;
-  final bool highlight;
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitleColor = Theme.of(context).colorScheme.onSurfaceVariant;
-    final valueColor = Theme.of(context).colorScheme.onSurface;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: subtitleColor,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color:
-                highlight ? const Color(AppColors.danger) : valueColor,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatusPill extends StatefulWidget {
-  const _StatusPill({
-    required this.isDue,
-    required this.isWarning,
-  });
-
-  final bool isDue;
-  final bool isWarning;
-
-  @override
-  State<_StatusPill> createState() => _StatusPillState();
-}
-
-class _StatusPillState extends State<_StatusPill>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _updateAnimation();
-  }
-
-  @override
-  void didUpdateWidget(covariant _StatusPill oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isDue != widget.isDue ||
-        oldWidget.isWarning != widget.isWarning) {
-      _updateAnimation();
-    }
-  }
-
-  void _updateAnimation() {
-    if (widget.isDue || widget.isWarning) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.stop();
-      _controller.value = 0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final background = widget.isDue
-        ? const Color(AppColors.pillDueBackground)
-        : widget.isWarning
-            ? const Color(AppColors.pillWarningBackground)
-            : const Color(AppColors.pillOkBackground);
-    final foreground = widget.isDue
-        ? const Color(AppColors.danger)
-        : widget.isWarning
-            ? const Color(AppColors.warning)
-            : const Color(AppColors.success);
-    final label = widget.isDue
-        ? AppStrings.statusDue
-        : widget.isWarning
-            ? AppStrings.statusSoon
-            : AppStrings.statusOk;
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final t = _controller.value;
-        final scale = 1.0 + (0.1 * t);
-        final opacity = 1.0 - (0.12 * t);
-        final baseColor = background;
-        final flickerStrength = widget.isDue || widget.isWarning ? 0.25 : 0.0;
-        final flickerColor = Color.lerp(
-          baseColor,
-          const Color(AppColors.textOnPrimary),
-          flickerStrength * t,
-        );
-        return Transform.scale(
-          scale: scale,
-          child: Opacity(
-            opacity: opacity,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: flickerColor ?? background,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: foreground,
-                ),
-              ),
-            ),
           ),
         );
       },

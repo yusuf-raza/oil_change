@@ -141,7 +141,6 @@ class OilViewModel extends ChangeNotifier {
     _lastNotifiedDueMileage = null;
     _lastNotifiedThreshold = null;
     _unit = OilUnit.kilometers;
-    _themeMode = AppThemeMode.light;
     _notificationsEnabled = true;
 
     try {
