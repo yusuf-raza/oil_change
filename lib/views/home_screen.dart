@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -54,6 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final surfaceColor = isDark
             ? const Color(AppColors.darkSurface)
             : const Color(AppColors.lightSurface);
+        final overlayColor = isDark
+            ? const Color(0x66000000)
+            : const Color(0x33000000);
         final backgroundGradient = LinearGradient(
           colors: isDark
               ? const [
@@ -486,10 +491,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               if (viewModel.isLoading)
-                const Positioned.fill(
-                  child: IgnorePointer(
-                    child: Center(
-                      child: CircularProgressIndicator(),
+                Positioned.fill(
+                  child: AbsorbPointer(
+                    child: ClipRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          color: overlayColor,
+                          alignment: Alignment.center,
+                          child: const CircularProgressIndicator(),
+                        ),
+                      ),
                     ),
                   ),
                 ),

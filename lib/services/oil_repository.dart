@@ -86,8 +86,9 @@ class OilRepository {
     int? lastChangeMileage,
     int? lastNotifiedDueMileage,
     int? lastNotifiedThreshold,
+    int? lastNotifiedDate,
     String? unit,
-    String? themeMode,
+    int? notificationLeadKm,
     bool? notificationsEnabled,
   }) {
     // Build a Firestore-friendly update map that deletes null fields.
@@ -99,8 +100,11 @@ class OilRepository {
           lastNotifiedDueMileage ?? FieldValue.delete(),
       OilStorageKeys.lastNotifiedThreshold:
           lastNotifiedThreshold ?? FieldValue.delete(),
+      OilStorageKeys.lastNotifiedDate:
+          lastNotifiedDate ?? FieldValue.delete(),
       OilStorageKeys.unit: unit ?? FieldValue.delete(),
-      OilStorageKeys.themeMode: themeMode ?? FieldValue.delete(),
+      OilStorageKeys.notificationLeadKm:
+          notificationLeadKm ?? FieldValue.delete(),
       OilStorageKeys.notificationsEnabled:
           notificationsEnabled ?? FieldValue.delete(),
     };

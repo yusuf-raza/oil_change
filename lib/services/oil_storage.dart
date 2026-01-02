@@ -4,7 +4,9 @@ class OilStorageKeys {
   static const lastChangeMileage = 'last_change_mileage';
   static const lastNotifiedDueMileage = 'last_notified_due_mileage';
   static const lastNotifiedThreshold = 'last_notified_threshold';
+  static const lastNotifiedDate = 'last_notified_date';
   static const unit = 'unit';
   static const themeMode = 'theme_mode';
   static const notificationsEnabled = 'notifications_enabled';
+  static const notificationLeadKm = 'notification_lead_km';
 }

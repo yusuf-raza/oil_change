@@ -12,6 +12,7 @@ import 'models/enums.dart';
 import 'services/background_tasks.dart';
 import 'services/notification_service.dart';
 import 'services/oil_repository.dart';
+import 'services/theme_storage.dart';
 import 'viewmodels/oil_view_model.dart';
 import 'views/home_screen.dart';
 import 'views/sign_in_screen.dart';
@@ -31,11 +32,20 @@ Future<void> main() async {
     existingWorkPolicy: ExistingWorkPolicy.keep,
   );
 
-  runApp(const OilChangeApp());
+  AppThemeMode? initialThemeMode;
+  try {
+    initialThemeMode = await ThemeStorage().readThemeMode();
+  } catch (_) {
+    initialThemeMode = null;
+  }
+
+  runApp(OilChangeApp(initialThemeMode: initialThemeMode));
 }
 
 class OilChangeApp extends StatelessWidget {
-  const OilChangeApp({super.key});
+  const OilChangeApp({super.key, this.initialThemeMode});
+
+  final AppThemeMode? initialThemeMode;
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +102,7 @@ class OilChangeApp extends StatelessWidget {
           create: (_) => OilViewModel(
             NotificationService(),
             OilRepository(FirebaseFirestore.instance, FirebaseAuth.instance),
+            initialThemeMode: initialThemeMode,
           ),
           child: Consumer<OilViewModel>(
             builder: (context, viewModel, child) {

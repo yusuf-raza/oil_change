@@ -53,7 +53,10 @@ void callbackDispatcher() {
     final lastChange = _readInt(data, OilStorageKeys.lastChangeMileage);
     final lastNotified = _readInt(data, OilStorageKeys.lastNotifiedDueMileage);
     final lastThreshold = _readInt(data, OilStorageKeys.lastNotifiedThreshold);
+    final lastNotifiedDate = _readInt(data, OilStorageKeys.lastNotifiedDate);
     final unit = _readString(data, OilStorageKeys.unit);
+    final notificationLeadKm =
+        _readInt(data, OilStorageKeys.notificationLeadKm) ?? 50;
     final notificationsEnabled =
         _readBool(data, OilStorageKeys.notificationsEnabled) ?? true;
 
@@ -68,7 +71,10 @@ void callbackDispatcher() {
     final dueMileage = lastChange + interval;
     if (lastNotified != null && lastNotified != dueMileage) {
       await docRef.set(
-        {OilStorageKeys.lastNotifiedThreshold: FieldValue.delete()},
+        {
+          OilStorageKeys.lastNotifiedThreshold: FieldValue.delete(),
+          OilStorageKeys.lastNotifiedDate: FieldValue.delete(),
+        },
         SetOptions(merge: true),
       );
     }
@@ -91,23 +97,11 @@ void callbackDispatcher() {
       body =
           '${AppStrings.notificationDueBody} $interval $unitLabel.';
       color = AppColors.danger;
-    } else if (remaining <= 50) {
-      threshold = 50;
+    } else if (remaining <= notificationLeadKm) {
+      threshold = notificationLeadKm;
       title = AppStrings.notificationSoonTitle;
       body =
-          '${AppStrings.notificationSoonBody50} $unitLabel ${AppStrings.notificationSoonSuffix}';
-      color = AppColors.warning;
-    } else if (remaining <= 100) {
-      threshold = 100;
-      title = AppStrings.notificationSoonTitle;
-      body =
-          '${AppStrings.notificationSoonBody100} $unitLabel ${AppStrings.notificationSoonSuffix}';
-      color = AppColors.warning;
-    } else if (remaining <= 150) {
-      threshold = 150;
-      title = AppStrings.notificationSoonTitle;
-      body =
-          '${AppStrings.notificationSoonBody150} $unitLabel ${AppStrings.notificationSoonSuffix}';
+          '${AppStrings.notificationSoonBody} $threshold $unitLabel ${AppStrings.notificationSoonSuffix}';
       color = AppColors.warning;
     }
 
@@ -115,7 +109,10 @@ void callbackDispatcher() {
       return Future.value(true);
     }
 
-    if (lastNotified == dueMileage && lastThreshold == threshold) {
+    final today = _todayStamp();
+    if (lastNotified == dueMileage &&
+        lastThreshold == threshold &&
+        lastNotifiedDate == today) {
       return Future.value(true);
     }
 
@@ -129,6 +126,7 @@ void callbackDispatcher() {
       {
         OilStorageKeys.lastNotifiedDueMileage: dueMileage,
         OilStorageKeys.lastNotifiedThreshold: threshold,
+        OilStorageKeys.lastNotifiedDate: today,
       },
       SetOptions(merge: true),
     );
@@ -164,4 +162,9 @@ bool? _readBool(Map<String, dynamic>? data, String key) {
   }
   final value = data[key];
   return value is bool ? value : null;
+}
+
+int _todayStamp() {
+  final now = DateTime.now();
+  return now.year * 10000 + now.month * 100 + now.day;
 }

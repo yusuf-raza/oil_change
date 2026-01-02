@@ -6,6 +6,7 @@ class AppStrings {
   static const unitsTitle = 'Units';
   static const themeTitle = 'Theme';
   static const notificationsTitle = 'Notifications';
+  static const notificationLeadTitle = 'Reminder threshold';
   static const kilometers = 'Kilometers';
   static const miles = 'Miles';
   static const light = 'Light';
@@ -45,9 +46,7 @@ class AppStrings {
   static const notificationSoonTitle = '🟠 Oil change soon';
   static const notificationDueBody =
       'Your vehicle needs an oil change! It has ran past the oil interval';
-  static const notificationSoonBody50 = 'About 50';
-  static const notificationSoonBody100 = 'About 100';
-  static const notificationSoonBody150 = 'About 150';
+  static const notificationSoonBody = 'About';
   static const notificationSoonSuffix = 'remaining.';
 
   static const notificationChannelId = 'oil_change_reminders';
@@ -58,7 +57,6 @@ class AppStrings {
 
   static const unitKmShort = 'km';
   static const unitMiShort = 'mi';
-  static const unitKilometersStorage = 'kilometers';
   static const unitMilesStorage = 'miles';
 
   static const androidNotificationIcon = '@mipmap/ic_launcher';

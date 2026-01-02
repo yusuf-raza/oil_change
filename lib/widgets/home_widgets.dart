@@ -146,6 +146,50 @@ class HomeDrawer extends StatelessWidget {
                 }
               },
             ),
+            const Divider(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                AppStrings.notificationLeadTitle,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            RadioListTile<int>(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: Text('50 ${viewModel.unitLabel}'),
+              value: 50,
+              groupValue: viewModel.notificationLeadKm,
+              onChanged: (value) {
+                if (value != null) {
+                  viewModel.updateNotificationLeadKm(value);
+                }
+              },
+            ),
+            RadioListTile<int>(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: Text('100 ${viewModel.unitLabel}'),
+              value: 100,
+              groupValue: viewModel.notificationLeadKm,
+              onChanged: (value) {
+                if (value != null) {
+                  viewModel.updateNotificationLeadKm(value);
+                }
+              },
+            ),
+            RadioListTile<int>(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: Text('150 ${viewModel.unitLabel}'),
+              value: 150,
+              groupValue: viewModel.notificationLeadKm,
+              onChanged: (value) {
+                if (value != null) {
+                  viewModel.updateNotificationLeadKm(value);
+                }
+              },
+            ),
             SwitchListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               title: const Text(AppStrings.notificationsTitle),

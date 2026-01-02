@@ -1,20 +1,22 @@
 # Oil Change Reminder
 
-A Flutter Android app that tracks motorcycle oil changes. Enter current mileage, last change, and oil interval to compute the next due mileage and remaining distance. The app sends local notifications in the background (including killed state) and supports OCR-based mileage scanning. Data is stored in Firebase Firestore with anonymous auth and offline persistence.
+A Flutter Android app that tracks motorcycle oil changes. Enter current mileage, last change, and oil interval to compute the next due mileage and remaining distance. The app sends local notifications in the background (including killed state) and supports OCR-based mileage scanning. Data is stored in Firebase Firestore with Google sign-in and offline persistence.
 
 ## Features
 - Manual entry for current mileage, last change, and oil interval
 - Remaining distance and next due calculation
-- Local notifications at 150/100/50 remaining and when overdue
+- Daily local reminders once the selected threshold is reached, plus overdue alerts
 - Background checks via WorkManager
 - OCR scan of dashboard mileage using ML Kit
 - Unit switch (km/mi), theme toggle, and notification toggle
+- Reminder threshold selection (50/100/150)
 - MVVM architecture with Provider
-- Firestore persistence with offline cache + anonymous auth
+- Firestore persistence with offline cache + Google sign-in
+- Theme preference is stored locally (not in Firestore)
 
 ## Tech Stack
 - Flutter + Provider (MVVM)
-- Firebase Auth (anonymous) + Cloud Firestore
+- Firebase Auth (Google sign-in) + Cloud Firestore
 - flutter_local_notifications for local notifications
 - workmanager for background execution
 - google_mlkit_text_recognition + image_picker for OCR
@@ -30,7 +32,7 @@ A Flutter Android app that tracks motorcycle oil changes. Enter current mileage,
 1) Create a Firebase project
 2) Add Android app with package name `com.oil.change`
 3) Download `google-services.json` and place it at `android/app/google-services.json`
-4) Enable **Authentication** → **Anonymous**
+4) Enable **Authentication** → **Google**
 5) Enable **Firestore** and set rules:
 ```
 rules_version = '2';
@@ -57,6 +59,8 @@ flutter run
 ## Notifications
 - Android 13+ requires notification permission on first launch.
 - Background notifications are scheduled every 12 hours.
+- Choose a reminder threshold (50/100/150) in Settings.
+- Reminders repeat daily once the threshold is reached, until reset or oil change.
 - Toggle notifications in Settings to disable reminders.
 
 ## OCR Mileage Scan
@@ -65,4 +69,4 @@ flutter run
 
 ## Notes
 - Use the "Oil changed" button to set the last change mileage to the current value.
-- Use Settings to reset, switch units, or change theme.
+- Use Settings to reset, switch units, change theme, or adjust reminder threshold.

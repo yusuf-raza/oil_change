@@ -6,21 +6,38 @@ import '../models/oil_state.dart';
 import '../services/notification_service.dart';
 import '../services/oil_repository.dart';
 import '../services/oil_storage.dart';
+import '../services/theme_storage.dart';
 
 class OilViewModel extends ChangeNotifier {
-  OilViewModel(this._notifications, this._repository);
+  OilViewModel(
+    this._notifications,
+    this._repository, {
+    ThemeStorage? themeStorage,
+    AppThemeMode? initialThemeMode,
+  })  : _themeStorage = themeStorage ?? ThemeStorage(),
+        _themeMode = initialThemeMode ?? AppThemeMode.light,
+        _themeLoaded = initialThemeMode != null {
+    if (!_themeLoaded) {
+      _loadThemeMode();
+    }
+  }
 
   final NotificationService _notifications;
   final OilRepository _repository;
+  final ThemeStorage _themeStorage;
 
   bool _isInitialized = false;
   bool _isLoading = false;
   bool _isSaving = false;
+  bool _isDisposed = false;
+  bool _themeLoaded;
   OilState _state = const OilState();
   int? _lastNotifiedDueMileage;
   int? _lastNotifiedThreshold;
+  int? _lastNotifiedDate;
   OilUnit _unit = OilUnit.kilometers;
-  AppThemeMode _themeMode = AppThemeMode.light;
+  AppThemeMode _themeMode;
+  int _notificationLeadKm = 50;
   bool _notificationsEnabled = true;
   String? _lastError;
 
@@ -32,6 +49,7 @@ class OilViewModel extends ChangeNotifier {
   int? get lastChangeMileage => _state.lastChangeMileage;
   OilUnit get unit => _unit;
   AppThemeMode get themeMode => _themeMode;
+  int get notificationLeadKm => _notificationLeadKm;
   bool get notificationsEnabled => _notificationsEnabled;
   String? get lastError => _lastError;
 
@@ -67,7 +85,7 @@ class OilViewModel extends ChangeNotifier {
     }
 
     _isLoading = true;
-    notifyListeners();
+    _notifyListeners();
 
     try {
       final data = await _repository.fetchState();
@@ -78,8 +96,10 @@ class OilViewModel extends ChangeNotifier {
           _readInt(data, OilStorageKeys.lastNotifiedDueMileage);
       _lastNotifiedThreshold =
           _readInt(data, OilStorageKeys.lastNotifiedThreshold);
+      _lastNotifiedDate = _readInt(data, OilStorageKeys.lastNotifiedDate);
       _unit = _readUnit(_readString(data, OilStorageKeys.unit));
-      _themeMode = _readThemeMode(_readString(data, OilStorageKeys.themeMode));
+      _notificationLeadKm =
+          _readInt(data, OilStorageKeys.notificationLeadKm) ?? 50;
       _notificationsEnabled =
           _readBool(data, OilStorageKeys.notificationsEnabled) ?? true;
 
@@ -99,30 +119,31 @@ class OilViewModel extends ChangeNotifier {
     await _notifications.requestPermissions();
 
     _isInitialized = true;
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> updateCurrentMileage(int value) async {
     _state = _state.copyWith(currentMileage: value);
     await _safePersist();
     await _safeNotify();
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> updateIntervalKm(int value) async {
     _state = _state.copyWith(intervalKm: value);
     await _safePersist();
     await _safeNotify();
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> updateLastChangeMileage(int value) async {
     _state = _state.copyWith(lastChangeMileage: value);
     _lastNotifiedDueMileage = null;
     _lastNotifiedThreshold = null;
+    _lastNotifiedDate = null;
     await _safePersist();
     await _safeNotify();
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> markOilChanged() async {
@@ -132,15 +153,18 @@ class OilViewModel extends ChangeNotifier {
     _state = _state.copyWith(lastChangeMileage: _state.currentMileage);
     _lastNotifiedDueMileage = null;
     _lastNotifiedThreshold = null;
+    _lastNotifiedDate = null;
     await _safePersist();
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> resetAll() async {
     _state = const OilState();
     _lastNotifiedDueMileage = null;
     _lastNotifiedThreshold = null;
+    _lastNotifiedDate = null;
     _unit = OilUnit.kilometers;
+    _notificationLeadKm = 50;
     _notificationsEnabled = true;
 
     try {
@@ -150,7 +174,7 @@ class OilViewModel extends ChangeNotifier {
       _lastError = error.toString();
     }
 
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> updateUnit(OilUnit unit) async {
@@ -167,24 +191,43 @@ class OilViewModel extends ChangeNotifier {
     _lastNotifiedThreshold = null;
     _unit = unit;
     await _safePersist();
-    notifyListeners();
+    _notifyListeners();
   }
 
   Future<void> updateThemeMode(AppThemeMode themeMode) async {
+    if (themeMode == _themeMode) {
+      return;
+    }
+    _themeLoaded = true;
     _themeMode = themeMode;
-    await _safePersist();
-    notifyListeners();
+    _notifyListeners();
+    try {
+      await _themeStorage.writeThemeMode(themeMode);
+    } catch (_) {
+      // Local storage failure should not block UI.
+    }
   }
 
   Future<void> updateNotificationsEnabled(bool enabled) async {
     _notificationsEnabled = enabled;
     await _safePersist();
-    notifyListeners();
+    _notifyListeners();
+  }
+
+  Future<void> updateNotificationLeadKm(int value) async {
+    if (value == _notificationLeadKm) {
+      return;
+    }
+    _notificationLeadKm = value;
+    _lastNotifiedThreshold = null;
+    _lastNotifiedDate = null;
+    await _safePersist();
+    _notifyListeners();
   }
 
   Future<void> _safePersist() async {
     _isSaving = true;
-    notifyListeners();
+    _notifyListeners();
     try {
       await _repository.saveState(
         OilRepository.buildUpdateMap(
@@ -193,8 +236,9 @@ class OilViewModel extends ChangeNotifier {
           lastChangeMileage: _state.lastChangeMileage,
           lastNotifiedDueMileage: _lastNotifiedDueMileage,
           lastNotifiedThreshold: _lastNotifiedThreshold,
+          lastNotifiedDate: _lastNotifiedDate,
           unit: _unit.name,
-          themeMode: _themeMode.name,
+          notificationLeadKm: _notificationLeadKm,
           notificationsEnabled: _notificationsEnabled,
         ),
       );
@@ -227,6 +271,7 @@ class OilViewModel extends ChangeNotifier {
     if (_lastNotifiedDueMileage != null &&
         _lastNotifiedDueMileage != dueMileage) {
       _lastNotifiedThreshold = null;
+      _lastNotifiedDate = null;
     }
 
     final current = _state.currentMileage!;
@@ -245,20 +290,11 @@ class OilViewModel extends ChangeNotifier {
       body =
           '${AppStrings.notificationDueBody} ${_state.intervalKm} $unit.';
       color = AppColors.danger;
-    } else if (remaining <= 50) {
-      threshold = 50;
+    } else if (remaining <= _notificationLeadKm) {
+      threshold = _notificationLeadKm;
       title = AppStrings.notificationSoonTitle;
-      body = '${AppStrings.notificationSoonBody50} $unit ${AppStrings.notificationSoonSuffix}';
-      color = AppColors.warning;
-    } else if (remaining <= 100) {
-      threshold = 100;
-      title = AppStrings.notificationSoonTitle;
-      body = '${AppStrings.notificationSoonBody100} $unit ${AppStrings.notificationSoonSuffix}';
-      color = AppColors.warning;
-    } else if (remaining <= 150) {
-      threshold = 150;
-      title = AppStrings.notificationSoonTitle;
-      body = '${AppStrings.notificationSoonBody150} $unit ${AppStrings.notificationSoonSuffix}';
+      body =
+          '${AppStrings.notificationSoonBody} $threshold $unit ${AppStrings.notificationSoonSuffix}';
       color = AppColors.warning;
     }
 
@@ -266,8 +302,10 @@ class OilViewModel extends ChangeNotifier {
       return;
     }
 
+    final today = _todayStamp();
     if (_lastNotifiedDueMileage == dueMileage &&
-        _lastNotifiedThreshold == threshold) {
+        _lastNotifiedThreshold == threshold &&
+        _lastNotifiedDate == today) {
       return;
     }
 
@@ -278,6 +316,7 @@ class OilViewModel extends ChangeNotifier {
     );
     _lastNotifiedDueMileage = dueMileage;
     _lastNotifiedThreshold = threshold;
+    _lastNotifiedDate = today;
     await _safePersist();
   }
 
@@ -288,11 +327,24 @@ class OilViewModel extends ChangeNotifier {
     return OilUnit.kilometers;
   }
 
-  AppThemeMode _readThemeMode(String? stored) {
-    if (stored == AppThemeMode.dark.name) {
-      return AppThemeMode.dark;
+  Future<void> _loadThemeMode() async {
+    if (_themeLoaded) {
+      return;
     }
-    return AppThemeMode.light;
+    try {
+      final stored = await _themeStorage.readThemeMode();
+      if (_themeLoaded) {
+        return;
+      }
+      if (stored != null && stored != _themeMode) {
+        _themeMode = stored;
+        _notifyListeners();
+      }
+    } catch (_) {
+      // Local storage failure should not block UI.
+    } finally {
+      _themeLoaded = true;
+    }
   }
 
   int? _convertMileage(int? value, OilUnit targetUnit) {
@@ -333,5 +385,23 @@ class OilViewModel extends ChangeNotifier {
     }
     final value = data[key];
     return value is bool ? value : null;
+  }
+
+  int _todayStamp() {
+    final now = DateTime.now();
+    return now.year * 10000 + now.month * 100 + now.day;
+  }
+
+  void _notifyListeners() {
+    if (_isDisposed) {
+      return;
+    }
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }
