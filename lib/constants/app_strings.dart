@@ -43,6 +43,7 @@ class AppStrings {
   static const tourLoading = 'Loading tours...';
   static const tourMapTitle = 'Fuel stops map';
   static const tourMapEmpty = 'No map data available.';
+  static const tourMapFullscreen = 'Full screen map';
   static const tourDelete = 'Delete';
   static const tourDeleteTitle = 'Delete this tour?';
   static const tourDeleteBody = 'This cannot be undone.';
