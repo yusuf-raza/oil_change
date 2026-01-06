@@ -110,4 +110,36 @@ class TourRepository {
       rethrow;
     }
   }
+
+  Future<void> deleteTour(String id) async {
+    try {
+      final doc = await _docRef();
+      final snapshot = await doc.get();
+      final data = snapshot.data();
+      final raw = data?[OilStorageKeys.tourHistory];
+      if (raw is! List) {
+        return;
+      }
+      final updated = raw.where((item) {
+        if (item is Map) {
+          final mapped = Map<String, dynamic>.from(item);
+          return mapped['id']?.toString() != id;
+        }
+        return true;
+      }).toList();
+      await doc.set(
+        {
+          OilStorageKeys.tourHistory: updated,
+        },
+        SetOptions(merge: true),
+      );
+      logger.i('Firestore deleteTour doc=${doc.path} id=$id');
+    } on FirebaseException catch (error) {
+      logger.e('Firestore deleteTour failed: ${error.code} ${error.message}');
+      rethrow;
+    } catch (error) {
+      logger.e('Firestore deleteTour failed: $error');
+      rethrow;
+    }
+  }
 }

@@ -43,6 +43,9 @@ class AppStrings {
   static const tourLoading = 'Loading tours...';
   static const tourMapTitle = 'Fuel stops map';
   static const tourMapEmpty = 'No map data available.';
+  static const tourDelete = 'Delete';
+  static const tourDeleteTitle = 'Delete this tour?';
+  static const tourDeleteBody = 'This cannot be undone.';
   static const homeTab = 'Home';
   static const tourTab = 'Tour';
   static const tourFuelStopError = 'Enter both amount and liters.';
@@ -62,6 +65,7 @@ class AppStrings {
   static const confirmMileageTitle = 'Confirm mileage';
   static const confirmMileageLabel = 'Current mileage';
   static const scanMileageTooltip = 'Scan mileage';
+  static const scanValueTooltip = 'Scan value';
   static const settingsTooltip = 'Settings';
   static const resetTooltip = 'Reset';
   static const accountTitle = 'Account';

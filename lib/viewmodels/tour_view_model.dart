@@ -54,6 +54,7 @@ class TourViewModel extends ChangeNotifier {
   bool _isSaving = false;
   bool _isLoading = false;
   bool _isAddingStop = false;
+  String? _deletingTourId;
   String? _lastError;
   bool _isDisposed = false;
 
@@ -62,6 +63,7 @@ class TourViewModel extends ChangeNotifier {
   bool get isSaving => _isSaving;
   bool get isLoading => _isLoading;
   bool get isAddingStop => _isAddingStop;
+  String? get deletingTourId => _deletingTourId;
   String? get lastError => _lastError;
 
   int? get distanceKm {
@@ -218,6 +220,24 @@ class TourViewModel extends ChangeNotifier {
     } finally {
       _isSaving = false;
       _notifyListeners();
+    }
+  }
+
+  Future<String?> deleteTour(String id) async {
+    _lastError = null;
+    _deletingTourId = id;
+    _notifyListeners();
+    try {
+      await _repository.deleteTour(id);
+      _tours.removeWhere((tour) => tour.id == id);
+      _deletingTourId = null;
+      _notifyListeners();
+      return null;
+    } catch (error) {
+      _lastError = error.toString();
+      _deletingTourId = null;
+      _notifyListeners();
+      return _lastError;
     }
   }
 

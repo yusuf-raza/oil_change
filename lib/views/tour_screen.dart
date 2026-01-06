@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../services/ocr_service.dart';
 import '../viewmodels/tour_view_model.dart';
 import '../viewmodels/oil_view_model.dart';
 import '../models/enums.dart';
@@ -17,6 +19,7 @@ class TourScreen extends StatefulWidget {
 
 class _TourScreenState extends State<TourScreen> {
   late final TourViewModel _viewModel;
+  final OcrService _ocrService = OcrService();
 
   @override
   void initState() {
@@ -35,6 +38,75 @@ class _TourScreenState extends State<TourScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  Future<void> _scanToController({
+    required TextEditingController controller,
+    required bool allowDecimal,
+    required String title,
+    required String label,
+  }) async {
+    final picker = ImagePicker();
+    final photo = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+    );
+    if (photo == null) {
+      return;
+    }
+
+    final detected = await _ocrService.readNumeric(
+      photo.path,
+      allowDecimal: allowDecimal,
+    );
+    if (!mounted) {
+      return;
+    }
+    final detectedText = detected == null
+        ? ''
+        : _formatDetected(detected, allowDecimal);
+    final textController = TextEditingController(text: detectedText);
+    final confirmed = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: textController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: label,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text(AppStrings.cancel),
+            ),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(context).pop(textController.text.trim()),
+              child: const Text(AppStrings.save),
+            ),
+          ],
+        );
+      },
+    );
+    textController.dispose();
+    if (confirmed == null || confirmed.isEmpty) {
+      return;
+    }
+    controller.text = confirmed;
+  }
+
+  String _formatDetected(double value, bool allowDecimal) {
+    if (!allowDecimal) {
+      return value.toStringAsFixed(0);
+    }
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(2);
   }
 
   @override
@@ -117,6 +189,17 @@ class _TourScreenState extends State<TourScreen> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: '${AppStrings.tourStartMileage} ($unitLabel)',
+                        suffixIcon: IconButton(
+                          onPressed: () => _scanToController(
+                            controller: viewModel.startMileageController,
+                            allowDecimal: false,
+                            title: AppStrings.confirmMileageTitle,
+                            label:
+                                '${AppStrings.tourStartMileage} ($unitLabel)',
+                          ),
+                          icon: const Icon(Icons.camera_alt),
+                          tooltip: AppStrings.scanMileageTooltip,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -125,6 +208,17 @@ class _TourScreenState extends State<TourScreen> {
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
                         labelText: '${AppStrings.tourEndMileage} ($unitLabel)',
+                        suffixIcon: IconButton(
+                          onPressed: () => _scanToController(
+                            controller: viewModel.endMileageController,
+                            allowDecimal: false,
+                            title: AppStrings.confirmMileageTitle,
+                            label:
+                                '${AppStrings.tourEndMileage} ($unitLabel)',
+                          ),
+                          icon: const Icon(Icons.camera_alt),
+                          tooltip: AppStrings.scanMileageTooltip,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -150,8 +244,18 @@ class _TourScreenState extends State<TourScreen> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: AppStrings.tourFuelAmount,
+                        suffixIcon: IconButton(
+                          onPressed: () => _scanToController(
+                            controller: viewModel.fuelAmountController,
+                            allowDecimal: true,
+                            title: AppStrings.tourFuelAmount,
+                            label: AppStrings.tourFuelAmount,
+                          ),
+                          icon: const Icon(Icons.camera_alt),
+                          tooltip: AppStrings.scanValueTooltip,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -160,14 +264,24 @@ class _TourScreenState extends State<TourScreen> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: AppStrings.tourFuelLiters,
+                        suffixIcon: IconButton(
+                          onPressed: () => _scanToController(
+                            controller: viewModel.fuelLitersController,
+                            allowDecimal: true,
+                            title: AppStrings.tourFuelLiters,
+                            label: AppStrings.tourFuelLiters,
+                          ),
+                          icon: const Icon(Icons.camera_alt),
+                          tooltip: AppStrings.scanValueTooltip,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
-                      child: OutlinedButton.icon(
+                      child: OutlinedButton(
                         onPressed: viewModel.isAddingStop
                             ? null
                             : () async {
@@ -176,7 +290,7 @@ class _TourScreenState extends State<TourScreen> {
                                   _showSnack(error);
                                 }
                               },
-                        icon: viewModel.isAddingStop
+                        child: viewModel.isAddingStop
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
@@ -184,12 +298,9 @@ class _TourScreenState extends State<TourScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Icon(Icons.add),
-                        label: Text(
-                          viewModel.isAddingStop
-                              ? AppStrings.tourLoading
-                              : '➕ ${AppStrings.tourAddFuelStop}',
-                        ),
+                            : Text(
+                                '➕ ${AppStrings.tourAddFuelStop}',
+                              ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -375,6 +486,59 @@ class _TourScreenState extends State<TourScreen> {
                               '🪣 ${tour.totalLiters.toStringAsFixed(2)} L • '
                               '💸 PKR ${tour.totalSpendPkr.toStringAsFixed(0)}',
                             ),
+                            trailing: viewModel.deletingTourId == tour.id
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : IconButton(
+                                    icon: const Icon(Icons.delete_outline),
+                                    tooltip: AppStrings.tourDelete,
+                                    onPressed: () async {
+                                      final confirmed =
+                                          await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) {
+                                          return AlertDialog(
+                                            title: const Text(
+                                              AppStrings.tourDeleteTitle,
+                                            ),
+                                            content: const Text(
+                                              AppStrings.tourDeleteBody,
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(false),
+                                                child: const Text(
+                                                  AppStrings.cancel,
+                                                ),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(true),
+                                                child: const Text(
+                                                  AppStrings.tourDelete,
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      );
+                                      if (confirmed == true) {
+                                        final error =
+                                            await viewModel.deleteTour(tour.id);
+                                        if (error != null) {
+                                          _showSnack(error);
+                                        }
+                                      }
+                                    },
+                                  ),
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
