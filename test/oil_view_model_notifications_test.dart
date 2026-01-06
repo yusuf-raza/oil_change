@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:oil_change/constants/app_colors.dart';
 import 'package:oil_change/constants/app_strings.dart';
 import 'package:oil_change/models/enums.dart';
+import 'package:oil_change/services/location_service.dart';
 import 'package:oil_change/services/notification_service.dart';
 import 'package:oil_change/services/oil_repository.dart';
 import 'package:oil_change/services/oil_storage.dart';
@@ -50,6 +51,14 @@ class FakeNotificationService extends NotificationService {
   }
 }
 
+class FakeLocationService implements LocationServiceBase {
+  @override
+  Future<String?> getLocationLabel() async => null;
+
+  @override
+  Future<LocationPoint?> getLocationPoint() async => null;
+}
+
 Future<OilViewModel> _buildViewModel({
   required Map<String, dynamic> data,
   required FakeNotificationService notifications,
@@ -61,6 +70,7 @@ Future<OilViewModel> _buildViewModel({
     repository,
     initialThemeMode: AppThemeMode.light,
     nowProvider: nowProvider,
+    locationService: FakeLocationService(),
   );
   await viewModel.load();
   return viewModel;

@@ -9,4 +9,6 @@ class OilStorageKeys {
   static const themeMode = 'theme_mode';
   static const notificationsEnabled = 'notifications_enabled';
   static const notificationLeadKm = 'notification_lead_km';
+  static const oilChangeHistory = 'oil_change_history';
+  static const tourHistory = 'tour_history';
 }

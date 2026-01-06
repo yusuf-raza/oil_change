@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../models/enums.dart';
+import '../models/oil_change_entry.dart';
 import '../models/oil_state.dart';
+import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/oil_repository.dart';
 import '../services/oil_storage.dart';
@@ -15,10 +17,12 @@ class OilViewModel extends ChangeNotifier {
     ThemeStorage? themeStorage,
     AppThemeMode? initialThemeMode,
     DateTime Function()? nowProvider,
+    LocationServiceBase? locationService,
   })  : _themeStorage = themeStorage ?? ThemeStorage(),
         _themeMode = initialThemeMode ?? AppThemeMode.light,
         _themeLoaded = initialThemeMode != null,
-        _now = nowProvider ?? DateTime.now {
+        _now = nowProvider ?? DateTime.now,
+        _locationService = locationService ?? LocationService() {
     if (!_themeLoaded) {
       _loadThemeMode();
     }
@@ -28,6 +32,7 @@ class OilViewModel extends ChangeNotifier {
   final OilRepositoryBase _repository;
   final ThemeStorage _themeStorage;
   final DateTime Function() _now;
+  final LocationServiceBase _locationService;
 
   bool _isInitialized = false;
   bool _isLoading = false;
@@ -35,6 +40,7 @@ class OilViewModel extends ChangeNotifier {
   bool _isDisposed = false;
   bool _themeLoaded;
   OilState _state = const OilState();
+  List<OilChangeEntry> _history = [];
   int? _lastNotifiedDueMileage;
   int? _lastNotifiedThreshold;
   int? _lastNotifiedDate;
@@ -55,6 +61,7 @@ class OilViewModel extends ChangeNotifier {
   int get notificationLeadKm => _notificationLeadKm;
   bool get notificationsEnabled => _notificationsEnabled;
   String? get lastError => _lastError;
+  List<OilChangeEntry> get history => List.unmodifiable(_history);
 
   String get unitLabel => _unit == OilUnit.kilometers
       ? AppStrings.unitKmShort
@@ -92,26 +99,7 @@ class OilViewModel extends ChangeNotifier {
 
     try {
       final data = await _repository.fetchState();
-      final current = _readInt(data, OilStorageKeys.currentMileage);
-      final interval = _readInt(data, OilStorageKeys.intervalKm);
-      final lastChange = _readInt(data, OilStorageKeys.lastChangeMileage);
-      _lastNotifiedDueMileage =
-          _readInt(data, OilStorageKeys.lastNotifiedDueMileage);
-      _lastNotifiedThreshold =
-          _readInt(data, OilStorageKeys.lastNotifiedThreshold);
-      _lastNotifiedDate = _readInt(data, OilStorageKeys.lastNotifiedDate);
-      _unit = _readUnit(_readString(data, OilStorageKeys.unit));
-      _notificationLeadKm =
-          _readInt(data, OilStorageKeys.notificationLeadKm) ?? 50;
-      _notificationsEnabled =
-          _readBool(data, OilStorageKeys.notificationsEnabled) ?? true;
-
-      _state = _state.copyWith(
-        currentMileage: current,
-        intervalKm: interval,
-        lastChangeMileage: lastChange ?? current,
-      );
-      _lastError = null;
+      _applyLoadedData(data);
     } catch (error) {
       _lastError = error.toString();
     } finally {
@@ -123,6 +111,20 @@ class OilViewModel extends ChangeNotifier {
 
     _isInitialized = true;
     _notifyListeners();
+  }
+
+  Future<void> refreshState() async {
+    _isLoading = true;
+    _notifyListeners();
+    try {
+      final data = await _repository.fetchState();
+      _applyLoadedData(data);
+    } catch (error) {
+      _lastError = error.toString();
+    } finally {
+      _isLoading = false;
+      _notifyListeners();
+    }
   }
 
   Future<void> updateCurrentMileage(int value) async {
@@ -153,7 +155,21 @@ class OilViewModel extends ChangeNotifier {
     if (_state.currentMileage == null) {
       return;
     }
+    String? location;
+    try {
+      location = await _locationService.getLocationLabel();
+    } catch (_) {
+      location = null;
+    }
     _state = _state.copyWith(lastChangeMileage: _state.currentMileage);
+    _history = [
+      OilChangeEntry(
+        date: _now(),
+        mileage: _state.currentMileage!,
+        location: location,
+      ),
+      ..._history,
+    ];
     _lastNotifiedDueMileage = null;
     _lastNotifiedThreshold = null;
     _lastNotifiedDate = null;
@@ -169,6 +185,7 @@ class OilViewModel extends ChangeNotifier {
     _unit = OilUnit.kilometers;
     _notificationLeadKm = 50;
     _notificationsEnabled = true;
+    _history = [];
 
     try {
       await _repository.clearState();
@@ -177,6 +194,12 @@ class OilViewModel extends ChangeNotifier {
       _lastError = error.toString();
     }
 
+    _notifyListeners();
+  }
+
+  Future<void> clearHistory() async {
+    _history = [];
+    await _safePersist();
     _notifyListeners();
   }
 
@@ -190,6 +213,15 @@ class OilViewModel extends ChangeNotifier {
       intervalKm: _convertMileage(_state.intervalKm, unit),
       lastChangeMileage: _convertMileage(_state.lastChangeMileage, unit),
     );
+    _history = _history
+        .map(
+          (entry) => OilChangeEntry(
+            date: entry.date,
+            mileage: _convertMileage(entry.mileage, unit) ?? entry.mileage,
+            location: entry.location,
+          ),
+        )
+        .toList();
     _lastNotifiedDueMileage = null;
     _lastNotifiedThreshold = null;
     _unit = unit;
@@ -243,6 +275,8 @@ class OilViewModel extends ChangeNotifier {
           unit: _unit.name,
           notificationLeadKm: _notificationLeadKm,
           notificationsEnabled: _notificationsEnabled,
+          oilChangeHistory:
+              _history.map((entry) => entry.toMap()).toList(),
         ),
       );
       _lastError = null;
@@ -390,6 +424,53 @@ class OilViewModel extends ChangeNotifier {
     }
     final value = data[key];
     return value is bool ? value : null;
+  }
+
+  void _applyLoadedData(Map<String, dynamic>? data) {
+    final current = _readInt(data, OilStorageKeys.currentMileage);
+    final interval = _readInt(data, OilStorageKeys.intervalKm);
+    final lastChange = _readInt(data, OilStorageKeys.lastChangeMileage);
+    _lastNotifiedDueMileage =
+        _readInt(data, OilStorageKeys.lastNotifiedDueMileage);
+    _lastNotifiedThreshold =
+        _readInt(data, OilStorageKeys.lastNotifiedThreshold);
+    _lastNotifiedDate = _readInt(data, OilStorageKeys.lastNotifiedDate);
+    _unit = _readUnit(_readString(data, OilStorageKeys.unit));
+    _notificationLeadKm =
+        _readInt(data, OilStorageKeys.notificationLeadKm) ?? 50;
+    _notificationsEnabled =
+        _readBool(data, OilStorageKeys.notificationsEnabled) ?? true;
+    _history = _readHistory(data);
+
+    _state = _state.copyWith(
+      currentMileage: current,
+      intervalKm: interval,
+      lastChangeMileage: lastChange ?? current,
+    );
+    _lastError = null;
+  }
+
+  List<OilChangeEntry> _readHistory(Map<String, dynamic>? data) {
+    if (data == null || !data.containsKey(OilStorageKeys.oilChangeHistory)) {
+      return [];
+    }
+    final raw = data[OilStorageKeys.oilChangeHistory];
+    if (raw is! List) {
+      return [];
+    }
+    final entries = <OilChangeEntry>[];
+    for (final item in raw) {
+      if (item is Map) {
+        final entry = OilChangeEntry.fromMap(
+          Map<String, dynamic>.from(item),
+        );
+        if (entry != null) {
+          entries.add(entry);
+        }
+      }
+    }
+    entries.sort((a, b) => b.date.compareTo(a.date));
+    return entries;
   }
 
   int _todayStamp() {

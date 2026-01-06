@@ -5,6 +5,7 @@ import '../constants/app_strings.dart';
 import '../models/enums.dart';
 import '../services/auth_service.dart';
 import '../viewmodels/oil_view_model.dart';
+import '../views/history_screen.dart';
 
 class HomeDrawer extends StatelessWidget {
   const HomeDrawer({
@@ -196,6 +197,20 @@ class HomeDrawer extends StatelessWidget {
               value: viewModel.notificationsEnabled,
               onChanged: (value) {
                 viewModel.updateNotificationsEnabled(value);
+              },
+            ),
+            const Divider(height: 24),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              title: const Text(AppStrings.historyTitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) => const HistoryScreen(),
+                  ),
+                );
               },
             ),
             const Divider(height: 24),

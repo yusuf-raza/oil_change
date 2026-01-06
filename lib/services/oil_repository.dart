@@ -96,6 +96,7 @@ class OilRepository implements OilRepositoryBase {
     String? unit,
     int? notificationLeadKm,
     bool? notificationsEnabled,
+    List<Map<String, dynamic>>? oilChangeHistory,
   }) {
     // Build a Firestore-friendly update map that deletes null fields.
     return {
@@ -113,6 +114,8 @@ class OilRepository implements OilRepositoryBase {
           notificationLeadKm ?? FieldValue.delete(),
       OilStorageKeys.notificationsEnabled:
           notificationsEnabled ?? FieldValue.delete(),
+      OilStorageKeys.oilChangeHistory:
+          oilChangeHistory ?? FieldValue.delete(),
     };
   }
 }

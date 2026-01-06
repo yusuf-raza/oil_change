@@ -19,6 +19,7 @@ class SignInViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
+  bool _isDisposed = false;
 
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -29,7 +30,7 @@ class SignInViewModel extends ChangeNotifier {
     }
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _notifyListeners();
 
     try {
       await _authService.signInWithGoogle();
@@ -41,7 +42,7 @@ class SignInViewModel extends ChangeNotifier {
       _error = err.toString();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      _notifyListeners();
     }
   }
 
@@ -50,6 +51,19 @@ class SignInViewModel extends ChangeNotifier {
       return;
     }
     _error = null;
+    _notifyListeners();
+  }
+
+  void _notifyListeners() {
+    if (_isDisposed) {
+      return;
+    }
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }
