@@ -79,12 +79,18 @@ void callbackDispatcher() {
       );
     }
 
+    final now = DateTime.now();
+    if (now.hour != 11) {
+      return Future.value(true);
+    }
+
     final notifications = NotificationService();
     await notifications.initialize();
     final unitLabel = unit == AppStrings.unitMilesStorage
         ? AppStrings.unitMiShort
         : AppStrings.unitKmShort;
     final remaining = dueMileage - current;
+    final remainingDisplay = remaining < 0 ? 0 : remaining;
 
     int? threshold;
     String? title;
@@ -94,14 +100,12 @@ void callbackDispatcher() {
     if (remaining <= 0) {
       threshold = 0;
       title = AppStrings.notificationDueTitle;
-      body =
-          '${AppStrings.notificationDueBody} $interval $unitLabel.';
+      body = 'Remaining: $remainingDisplay $unitLabel.';
       color = AppColors.danger;
     } else if (remaining <= notificationLeadKm) {
       threshold = notificationLeadKm;
       title = AppStrings.notificationSoonTitle;
-      body =
-          '${AppStrings.notificationSoonBody} $threshold $unitLabel ${AppStrings.notificationSoonSuffix}';
+      body = 'Remaining: $remainingDisplay $unitLabel.';
       color = AppColors.warning;
     }
 

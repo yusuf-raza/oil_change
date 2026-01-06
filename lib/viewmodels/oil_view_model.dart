@@ -14,17 +14,20 @@ class OilViewModel extends ChangeNotifier {
     this._repository, {
     ThemeStorage? themeStorage,
     AppThemeMode? initialThemeMode,
+    DateTime Function()? nowProvider,
   })  : _themeStorage = themeStorage ?? ThemeStorage(),
         _themeMode = initialThemeMode ?? AppThemeMode.light,
-        _themeLoaded = initialThemeMode != null {
+        _themeLoaded = initialThemeMode != null,
+        _now = nowProvider ?? DateTime.now {
     if (!_themeLoaded) {
       _loadThemeMode();
     }
   }
 
   final NotificationService _notifications;
-  final OilRepository _repository;
+  final OilRepositoryBase _repository;
   final ThemeStorage _themeStorage;
+  final DateTime Function() _now;
 
   bool _isInitialized = false;
   bool _isLoading = false;
@@ -262,6 +265,9 @@ class OilViewModel extends ChangeNotifier {
     if (!_notificationsEnabled) {
       return;
     }
+    if (!_isNotificationHour()) {
+      return;
+    }
     final dueMileage = nextDueMileage;
     if (dueMileage == null || _state.currentMileage == null) {
       return;
@@ -276,6 +282,7 @@ class OilViewModel extends ChangeNotifier {
 
     final current = _state.currentMileage!;
     final remaining = dueMileage - current;
+    final remainingDisplay = remaining < 0 ? 0 : remaining;
     final unit = unitLabel;
 
     int? threshold;
@@ -287,14 +294,12 @@ class OilViewModel extends ChangeNotifier {
     if (remaining <= 0) {
       threshold = 0;
       title = AppStrings.notificationDueTitle;
-      body =
-          '${AppStrings.notificationDueBody} ${_state.intervalKm} $unit.';
+      body = 'Remaining: $remainingDisplay $unit.';
       color = AppColors.danger;
     } else if (remaining <= _notificationLeadKm) {
       threshold = _notificationLeadKm;
       title = AppStrings.notificationSoonTitle;
-      body =
-          '${AppStrings.notificationSoonBody} $threshold $unit ${AppStrings.notificationSoonSuffix}';
+      body = 'Remaining: $remainingDisplay $unit.';
       color = AppColors.warning;
     }
 
@@ -388,8 +393,12 @@ class OilViewModel extends ChangeNotifier {
   }
 
   int _todayStamp() {
-    final now = DateTime.now();
+    final now = _now();
     return now.year * 10000 + now.month * 100 + now.day;
+  }
+
+  bool _isNotificationHour() {
+    return _now().hour == 11;
   }
 
   void _notifyListeners() {

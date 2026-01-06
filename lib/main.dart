@@ -28,7 +28,8 @@ Future<void> main() async {
   Workmanager().registerPeriodicTask(
     oilChangeTaskName,
     oilChangeTaskName,
-    frequency: const Duration(hours: 12),
+    frequency: const Duration(hours: 24),
+    initialDelay: _delayUntilNext11am(),
     existingWorkPolicy: ExistingWorkPolicy.keep,
   );
 
@@ -135,4 +136,13 @@ class _AuthLoadingScreen extends StatelessWidget {
       body: Center(child: CircularProgressIndicator()),
     );
   }
+}
+
+Duration _delayUntilNext11am() {
+  final now = DateTime.now();
+  var next = DateTime(now.year, now.month, now.day, 11);
+  if (!now.isBefore(next)) {
+    next = next.add(const Duration(days: 1));
+  }
+  return next.difference(now);
 }

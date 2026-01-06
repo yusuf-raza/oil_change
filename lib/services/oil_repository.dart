@@ -4,7 +4,13 @@ import '../constants/app_strings.dart';
 import 'app_logger.dart';
 import 'oil_storage.dart';
 
-class OilRepository {
+abstract class OilRepositoryBase {
+  Future<Map<String, dynamic>?> fetchState();
+  Future<void> saveState(Map<String, dynamic> data);
+  Future<void> clearState();
+}
+
+class OilRepository implements OilRepositoryBase {
   OilRepository(this._firestore, this._auth);
 
   final FirebaseFirestore _firestore;
