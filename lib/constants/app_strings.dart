@@ -59,12 +59,14 @@ class AppStrings {
   static const dark = 'Dark';
   static const save = 'Save';
   static const oilChanged = 'Oil changed';
+  static const oilChangedSaving = 'Saving...';
   static const reset = 'Reset';
   static const resetTitle = 'Reset all values?';
   static const resetBody = 'This clears mileage, interval, and reminder settings.';
   static const cancel = 'Cancel';
   static const confirmMileageTitle = 'Confirm mileage';
   static const confirmMileageLabel = 'Current mileage';
+  static const confirmLastChangeLabel = 'Last change mileage';
   static const scanMileageTooltip = 'Scan mileage';
   static const scanValueTooltip = 'Scan value';
   static const settingsTooltip = 'Settings';
@@ -74,6 +76,12 @@ class AppStrings {
   static const accountSignedIn = 'Signed in';
   static const signInWithGoogle = 'Sign in with Google';
   static const signOut = 'Sign out';
+  static const syncNow = 'Sync now';
+  static const syncComplete = 'Sync complete.';
+  static const syncFailed = 'Sync failed:';
+  static const syncing = 'Syncing...';
+  static const syncStatusLabel = 'Last sync:';
+  static const syncNever = 'Last sync: never';
 
   static const currentMileageLabel = 'Current mileage';
   static const yourMileageTitle = 'Your mileage';
@@ -87,6 +95,7 @@ class AppStrings {
   static const statusSoon = 'Soon';
   static const statusOk = 'OK';
   static const dueMessage = 'Time for an oil change.';
+  static const soonMessage = 'Oil change due soon.';
   static const okMessage = 'You are good to go.';
 
   static const notificationDueTitle = '🔴 Oil change due';

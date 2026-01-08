@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../constants/app_strings.dart';
 import '../models/oil_change_entry.dart';
@@ -18,6 +18,7 @@ class HistoryViewModel extends ChangeNotifier {
   bool get hasHistory => history.isNotEmpty;
   bool get isRefreshing => _isRefreshing;
   String? get lastError => _lastError;
+  bool get canClearHistory => hasHistory;
 
   String locationLabelFor(OilChangeEntry entry) {
     return entry.location ?? AppStrings.historyLocationUnknown;
@@ -30,6 +31,38 @@ class HistoryViewModel extends ChangeNotifier {
     final current = history[index];
     final previous = history[index + 1];
     return (current.mileage - previous.mileage).abs();
+  }
+
+  HistoryEntryDisplayData buildEntryDisplay(
+    int index,
+    MaterialLocalizations localizations,
+  ) {
+    final entry = history[index];
+    final interval = intervalFor(index);
+    final intervalText = interval == null
+        ? AppStrings.historyIntervalUnknown
+        : '$interval $unitLabel';
+    final dateText = localizations.formatFullDate(entry.date);
+    final timeText = localizations.formatTimeOfDay(
+      TimeOfDay.fromDateTime(entry.date),
+    );
+    return HistoryEntryDisplayData(
+      mileageText: '${entry.mileage} $unitLabel',
+      intervalText: intervalText,
+      dateText: dateText,
+      timeText: timeText,
+      locationText: locationLabelFor(entry),
+    );
+  }
+
+  Future<void> confirmClearHistory({
+    required Future<bool?> Function() confirm,
+  }) async {
+    final confirmed = await confirm();
+    if (confirmed != true) {
+      return;
+    }
+    await clearHistory();
   }
 
   Future<void> clearHistory() async {
@@ -55,4 +88,20 @@ class HistoryViewModel extends ChangeNotifier {
     _oilViewModel.removeListener(_onOilUpdated);
     super.dispose();
   }
+}
+
+class HistoryEntryDisplayData {
+  const HistoryEntryDisplayData({
+    required this.mileageText,
+    required this.intervalText,
+    required this.dateText,
+    required this.timeText,
+    required this.locationText,
+  });
+
+  final String mileageText;
+  final String intervalText;
+  final String dateText;
+  final String timeText;
+  final String locationText;
 }

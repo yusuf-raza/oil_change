@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:logger/logger.dart';
 
+import '../constants/app_strings.dart';
 import '../services/app_logger.dart';
 import '../services/auth_service.dart';
 import '../services/ocr_service.dart';
 import 'oil_view_model.dart';
 
-class HomeViewModel {
-  HomeViewModel({
+class OilChangeViewModel {
+  OilChangeViewModel({
     required this.oilViewModel,
     AuthService? authService,
     OcrService? ocrService,
@@ -28,21 +29,54 @@ class HomeViewModel {
   final TextEditingController intervalController = TextEditingController();
   final TextEditingController lastChangeController = TextEditingController();
   bool _controllersInitialized = false;
+  final ValueNotifier<bool> isSavingForm = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> isMarkingOilChanged = ValueNotifier<bool>(false);
 
   AuthService get authService => _authService;
+  OilViewModel get oilState => oilViewModel;
+
+  bool get isDue => oilViewModel.isDue;
+  bool get isWarning =>
+      oilViewModel.remainingKm != null &&
+      oilViewModel.remainingKm! > 0 &&
+      oilViewModel.remainingKm! <= 150;
+  bool get showStatus => isDue || isWarning;
+  bool get isLoading => oilViewModel.isLoading;
+  bool get isSaving => oilViewModel.isSaving;
+  bool get canSave => oilViewModel.isInitialized && !oilViewModel.isSaving;
+  bool get canMarkOilChanged => oilViewModel.currentMileage != null;
+  String get unitLabel => oilViewModel.unitLabel;
+
+  String get lastChangeSummary =>
+      _formatMetric(oilViewModel.lastChangeMileage);
+  String get nextDueSummary => _formatMetric(oilViewModel.nextDueMileage);
+  String get remainingSummary => _formatMetric(oilViewModel.remainingKm);
+  String? get statusMessage {
+    if (isDue) {
+      return AppStrings.dueMessage;
+    }
+    if (isWarning) {
+      return AppStrings.soonMessage;
+    }
+    return null;
+  }
 
   Future<void> ensureLoaded() async {
     await oilViewModel.load();
   }
 
-  void syncFromState() {
-    if (oilViewModel.isInitialized && !_controllersInitialized) {
-      currentController.text = oilViewModel.currentMileage?.toString() ?? '';
-      intervalController.text = oilViewModel.intervalKm?.toString() ?? '';
-      lastChangeController.text =
-          oilViewModel.lastChangeMileage?.toString() ?? '';
-      _controllersInitialized = true;
+  bool get needsControllerSync =>
+      oilViewModel.isInitialized && !_controllersInitialized;
+
+  void syncControllers() {
+    if (!needsControllerSync) {
+      return;
     }
+    currentController.text = oilViewModel.currentMileage?.toString() ?? '';
+    intervalController.text = oilViewModel.intervalKm?.toString() ?? '';
+    lastChangeController.text =
+        oilViewModel.lastChangeMileage?.toString() ?? '';
+    _controllersInitialized = true;
   }
 
   Future<String?> save() async {
@@ -62,12 +96,36 @@ class HomeViewModel {
     return oilViewModel.lastError;
   }
 
+  Future<String?> runSave() async {
+    if (isSavingForm.value) {
+      return null;
+    }
+    isSavingForm.value = true;
+    try {
+      return await save();
+    } finally {
+      isSavingForm.value = false;
+    }
+  }
+
   Future<void> markOilChanged() async {
     await oilViewModel.markOilChanged();
     final current = int.tryParse(currentController.text.trim()) ??
         oilViewModel.currentMileage;
     if (current != null) {
       lastChangeController.text = current.toString();
+    }
+  }
+
+  Future<void> runMarkOilChanged() async {
+    if (isMarkingOilChanged.value) {
+      return;
+    }
+    isMarkingOilChanged.value = true;
+    try {
+      await markOilChanged();
+    } finally {
+      isMarkingOilChanged.value = false;
     }
   }
 
@@ -132,5 +190,14 @@ class HomeViewModel {
     currentController.dispose();
     intervalController.dispose();
     lastChangeController.dispose();
+    isSavingForm.dispose();
+    isMarkingOilChanged.dispose();
+  }
+
+  String _formatMetric(int? value) {
+    if (value == null) {
+      return AppStrings.placeholder;
+    }
+    return '$value $unitLabel';
   }
 }

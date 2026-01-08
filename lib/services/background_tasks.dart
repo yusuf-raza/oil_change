@@ -80,7 +80,7 @@ void callbackDispatcher() {
     }
 
     final now = DateTime.now();
-    if (now.hour != 11) {
+    if (now.hour != 10) {
       return Future.value(true);
     }
 

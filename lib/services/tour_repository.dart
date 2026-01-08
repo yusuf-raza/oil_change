@@ -6,7 +6,13 @@ import '../models/tour_entry.dart';
 import 'app_logger.dart';
 import 'oil_storage.dart';
 
-class TourRepository {
+abstract class TourRepositoryBase {
+  Future<List<TourEntry>> fetchTours();
+  Future<TourEntry> saveTour(TourEntry entry);
+  Future<void> deleteTour(String id);
+}
+
+class TourRepository implements TourRepositoryBase {
   TourRepository(this._firestore, this._auth);
 
   final FirebaseFirestore _firestore;
@@ -28,6 +34,7 @@ class TourRepository {
         .doc(AppStrings.firestoreOilStateDoc);
   }
 
+  @override
   Future<List<TourEntry>> fetchTours() async {
     try {
       final doc = await _docRef();
@@ -61,6 +68,7 @@ class TourRepository {
     }
   }
 
+  @override
   Future<TourEntry> saveTour(TourEntry entry) async {
     try {
       final doc = await _docRef();
@@ -111,6 +119,7 @@ class TourRepository {
     }
   }
 
+  @override
   Future<void> deleteTour(String id) async {
     try {
       final doc = await _docRef();
@@ -139,6 +148,27 @@ class TourRepository {
       rethrow;
     } catch (error) {
       logger.e('Firestore deleteTour failed: $error');
+      rethrow;
+    }
+  }
+
+  Future<void> replaceTours(List<Map<String, dynamic>> payload) async {
+    try {
+      final doc = await _docRef();
+      await doc.set(
+        {
+          OilStorageKeys.tourHistory: payload,
+        },
+        SetOptions(merge: true),
+      );
+      logger.i('Firestore replaceTours doc=${doc.path}');
+    } on FirebaseException catch (error) {
+      logger.e(
+        'Firestore replaceTours failed: ${error.code} ${error.message}',
+      );
+      rethrow;
+    } catch (error) {
+      logger.e('Firestore replaceTours failed: $error');
       rethrow;
     }
   }

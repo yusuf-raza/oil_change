@@ -1,13 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../constants/app_strings.dart';
+import '../data/local/local_tour_draft_repository.dart';
 import '../models/enums.dart';
 import '../models/fuel_stop.dart';
 import '../models/tour_entry.dart';
 import '../services/location_service.dart';
+import '../services/ocr_service.dart';
 import '../services/tour_repository.dart';
 
 class TourSummary {
@@ -32,16 +36,27 @@ class TourSummary {
 class TourViewModel extends ChangeNotifier {
   TourViewModel({
     LocationServiceBase? locationService,
-    TourRepository? repository,
+    TourRepositoryBase? repository,
+    OcrService? ocrService,
+    LocalTourDraftRepository? draftRepository,
   })  : _locationService = locationService ?? LocationService(),
         _repository = repository ??
-            TourRepository(FirebaseFirestore.instance, FirebaseAuth.instance) {
+            TourRepository(FirebaseFirestore.instance, FirebaseAuth.instance),
+        _ocrService = ocrService ?? OcrService(),
+        _draftRepository = draftRepository {
     startMileageController.addListener(_onMileageChanged);
     endMileageController.addListener(_onMileageChanged);
+    titleController.addListener(_onDraftChanged);
+    startMileageController.addListener(_onDraftChanged);
+    endMileageController.addListener(_onDraftChanged);
+    fuelAmountController.addListener(_onDraftChanged);
+    fuelLitersController.addListener(_onDraftChanged);
   }
 
   final LocationServiceBase _locationService;
-  final TourRepository _repository;
+  final TourRepositoryBase _repository;
+  final OcrService _ocrService;
+  final LocalTourDraftRepository? _draftRepository;
   final TextEditingController startMileageController =
       TextEditingController();
   final TextEditingController endMileageController = TextEditingController();
@@ -57,6 +72,8 @@ class TourViewModel extends ChangeNotifier {
   String? _deletingTourId;
   String? _lastError;
   bool _isDisposed = false;
+  bool _isRestoringDraft = false;
+  Timer? _draftSaveTimer;
 
   List<FuelStop> get stops => List.unmodifiable(_stops);
   List<TourEntry> get tours => List.unmodifiable(_tours);
@@ -109,6 +126,7 @@ class TourViewModel extends ChangeNotifier {
     _isAddingStop = false;
     _notifyListeners();
     _updateStopLocation(_stops.length - 1, timestamp);
+    _onDraftChanged();
     return null;
   }
 
@@ -138,6 +156,49 @@ class TourViewModel extends ChangeNotifier {
       longitude: locationPoint.longitude,
     );
     _notifyListeners();
+    _onDraftChanged();
+  }
+
+  Future<void> scanToController({
+    required TextEditingController controller,
+    required bool allowDecimal,
+    required Future<String?> Function() pickImagePath,
+    required Future<String?> Function(String detectedText) confirmText,
+  }) async {
+    final path = await pickImagePath();
+    if (path == null) {
+      return;
+    }
+
+    final detected =
+        await _ocrService.readNumeric(path, allowDecimal: allowDecimal);
+    final detectedText =
+        detected == null ? '' : _formatDetected(detected, allowDecimal);
+    final confirmed = await confirmText(detectedText);
+    if (confirmed == null || confirmed.trim().isEmpty) {
+      return;
+    }
+    controller.text = confirmed.trim();
+  }
+
+  double convertDistance(double value, String fromUnit, OilUnit toUnit) {
+    final from =
+        fromUnit == OilUnit.miles.name ? OilUnit.miles : OilUnit.kilometers;
+    if (from == toUnit) {
+      return value;
+    }
+    const factor = 0.621371;
+    return toUnit == OilUnit.miles ? value * factor : value / factor;
+  }
+
+  String _formatDetected(double value, bool allowDecimal) {
+    if (!allowDecimal) {
+      return value.toStringAsFixed(0);
+    }
+    if (value == value.roundToDouble()) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(2);
   }
 
   void removeStop(int index) {
@@ -146,6 +207,7 @@ class TourViewModel extends ChangeNotifier {
     }
     _stops.removeAt(index);
     notifyListeners();
+    _onDraftChanged();
   }
 
   TourSummary? buildSummary() {
@@ -175,6 +237,7 @@ class TourViewModel extends ChangeNotifier {
     _lastError = null;
     _notifyListeners();
     try {
+      await _restoreDraft();
       final entries = await _repository.fetchTours();
       _tours
         ..clear()
@@ -213,6 +276,7 @@ class TourViewModel extends ChangeNotifier {
       final saved = await _repository.saveTour(entry);
       _tours.insert(0, saved);
       resetTour();
+      await _clearDraft();
       return null;
     } catch (error) {
       _lastError = error.toString();
@@ -255,6 +319,76 @@ class TourViewModel extends ChangeNotifier {
     _notifyListeners();
   }
 
+  void _onDraftChanged() {
+    if (_draftRepository == null || _isRestoringDraft) {
+      return;
+    }
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 600), _saveDraft);
+  }
+
+  Future<void> _restoreDraft() async {
+    if (_draftRepository == null || _isRestoringDraft) {
+      return;
+    }
+    _isRestoringDraft = true;
+    try {
+      final draft = await _draftRepository!.fetchDraft();
+      if (draft == null || draft.isEmpty) {
+        return;
+      }
+      titleController.text = (draft['title'] as String?) ?? '';
+      startMileageController.text = (draft['startMileage'] as String?) ?? '';
+      endMileageController.text = (draft['endMileage'] as String?) ?? '';
+      fuelAmountController.text = (draft['fuelAmount'] as String?) ?? '';
+      fuelLitersController.text = (draft['fuelLiters'] as String?) ?? '';
+      _stops
+        ..clear()
+        ..addAll(_readDraftStops(draft['stops']));
+      _notifyListeners();
+    } finally {
+      _isRestoringDraft = false;
+    }
+  }
+
+  Future<void> _saveDraft() async {
+    if (_draftRepository == null || _isDisposed) {
+      return;
+    }
+    final data = <String, dynamic>{
+      'title': titleController.text.trim(),
+      'startMileage': startMileageController.text.trim(),
+      'endMileage': endMileageController.text.trim(),
+      'fuelAmount': fuelAmountController.text.trim(),
+      'fuelLiters': fuelLitersController.text.trim(),
+      'stops': _stops.map((stop) => stop.toMap()).toList(),
+    };
+    await _draftRepository!.saveDraft(data);
+  }
+
+  Future<void> _clearDraft() async {
+    if (_draftRepository == null) {
+      return;
+    }
+    await _draftRepository!.clearDraft();
+  }
+
+  List<FuelStop> _readDraftStops(dynamic raw) {
+    if (raw is! List) {
+      return [];
+    }
+    final stops = <FuelStop>[];
+    for (final item in raw) {
+      if (item is Map<String, dynamic>) {
+        final stop = FuelStop.fromMap(item);
+        if (stop != null) {
+          stops.add(stop);
+        }
+      }
+    }
+    return stops;
+  }
+
   void _notifyListeners() {
     if (_isDisposed) {
       return;
@@ -266,6 +400,12 @@ class TourViewModel extends ChangeNotifier {
   void dispose() {
     startMileageController.removeListener(_onMileageChanged);
     endMileageController.removeListener(_onMileageChanged);
+    titleController.removeListener(_onDraftChanged);
+    startMileageController.removeListener(_onDraftChanged);
+    endMileageController.removeListener(_onDraftChanged);
+    fuelAmountController.removeListener(_onDraftChanged);
+    fuelLitersController.removeListener(_onDraftChanged);
+    _draftSaveTimer?.cancel();
     startMileageController.dispose();
     endMileageController.dispose();
     titleController.dispose();

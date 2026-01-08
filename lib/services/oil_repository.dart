@@ -34,6 +34,7 @@ class OilRepository implements OilRepositoryBase {
         .doc(AppStrings.firestoreOilStateDoc);
   }
 
+  @override
   Future<Map<String, dynamic>?> fetchState() async {
     // Fetch the current oil state snapshot for the signed-in user.
     try {
@@ -57,6 +58,7 @@ class OilRepository implements OilRepositoryBase {
     }
   }
 
+  @override
   Future<void> saveState(Map<String, dynamic> data) async {
     // Merge the provided fields into the user's oil state document.
     try {
@@ -72,6 +74,7 @@ class OilRepository implements OilRepositoryBase {
     }
   }
 
+  @override
   Future<void> clearState() async {
     // Delete the user's oil state document entirely.
     try {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
@@ -38,6 +40,7 @@ class OilViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSaving = false;
   bool _isDisposed = false;
+  Timer? _dailyNotifyTimer;
   bool _themeLoaded;
   OilState _state = const OilState();
   List<OilChangeEntry> _history = [];
@@ -90,7 +93,7 @@ class OilViewModel extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    if (_isInitialized) {
+    if (_isInitialized || _isLoading) {
       return;
     }
 
@@ -102,18 +105,28 @@ class OilViewModel extends ChangeNotifier {
       _applyLoadedData(data);
     } catch (error) {
       _lastError = error.toString();
-    } finally {
-      _isLoading = false;
     }
 
     await _notifications.initialize();
     await _notifications.requestPermissions();
 
     _isInitialized = true;
+    _isLoading = false;
     _notifyListeners();
+
+    // Check immediately and then daily while the app is open.
+    await _safeNotify();
+    _scheduleDailyNotify();
   }
 
   Future<void> refreshState() async {
+    if (_isLoading) {
+      return;
+    }
+    if (!_isInitialized) {
+      await load();
+      return;
+    }
     _isLoading = true;
     _notifyListeners();
     try {
@@ -284,6 +297,7 @@ class OilViewModel extends ChangeNotifier {
       _lastError = error.toString();
     } finally {
       _isSaving = false;
+      _notifyListeners();
     }
   }
 
@@ -479,7 +493,8 @@ class OilViewModel extends ChangeNotifier {
   }
 
   bool _isNotificationHour() {
-    return _now().hour == 11;
+    // Limit daily reminders to 10am local time.
+    return _now().hour == 10;
   }
 
   void _notifyListeners() {
@@ -489,9 +504,27 @@ class OilViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _scheduleDailyNotify() {
+    _dailyNotifyTimer?.cancel();
+    final now = _now();
+    var next = DateTime(now.year, now.month, now.day, 10);
+    if (!now.isBefore(next)) {
+      next = next.add(const Duration(days: 1));
+    }
+    final initialDelay = next.difference(now);
+    _dailyNotifyTimer = Timer(initialDelay, () {
+      _safeNotify();
+      _dailyNotifyTimer = Timer.periodic(
+        const Duration(hours: 24),
+        (_) => _safeNotify(),
+      );
+    });
+  }
+
   @override
   void dispose() {
     _isDisposed = true;
+    _dailyNotifyTimer?.cancel();
     super.dispose();
   }
 }
