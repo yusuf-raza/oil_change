@@ -1,6 +1,6 @@
 {
-    "name": "oil_change",
-    "short_name": "oil_change",
+    "name": "RidePals",
+    "short_name": "RidePals",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

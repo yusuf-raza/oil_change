@@ -69,6 +69,10 @@ class HistoryViewModel extends ChangeNotifier {
     await _oilViewModel.clearHistory();
   }
 
+  Future<void> deleteEntry(int index) async {
+    await _oilViewModel.deleteHistoryAt(index);
+  }
+
   Future<void> refresh() async {
     _isRefreshing = true;
     _lastError = null;

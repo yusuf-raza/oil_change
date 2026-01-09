@@ -98,11 +98,15 @@ class SignInView extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  child: ClipOval(child: Image.asset('assets/oil.jpg', fit: BoxFit.cover)),
+                                  child: const Icon(
+                                    Icons.sports_motorsports,
+                                    size: 34,
+                                    color: Color(AppColors.seed),
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 const Text(
-                                  AppStrings.headline,
+                                  AppStrings.signInTitle,
                                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.5),
                                 ),
                                 const SizedBox(height: 8),

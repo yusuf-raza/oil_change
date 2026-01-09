@@ -1,6 +1,6 @@
-# Oil Change Reminder
+# RidePals
 
-A Flutter Android app that tracks motorcycle oil changes and tour fuel usage. Enter current mileage, last change, and oil interval to compute the next due mileage and remaining distance. The app sends local notifications in the background (including killed state), supports OCR-based mileage scanning, and stores everything offline-first with sync to Firebase Firestore.
+A Flutter app that tracks motorcycle oil changes plus tour fuel and expenses. Enter current mileage, last change, and oil interval to compute the next due mileage and remaining distance. The app sends local notifications in the background (including killed state), supports OCR-based mileage scanning, and stores everything offline-first with sync to Firebase Firestore.
 
 ## Features
 - Manual entry for current mileage, last change, and oil interval
@@ -10,7 +10,10 @@ A Flutter Android app that tracks motorcycle oil changes and tour fuel usage. En
 - OCR scan of dashboard mileage using ML Kit
 - Unit switch (km/mi) and notification toggle
 - Reminder threshold selection (50/100/150)
-- Tour tracker with fuel stops, totals, and per-tour summaries
+- Tour expense tracker with fuel stops, totals, and per-tour summaries
+- Other expenses per tour (Group collection + Others with subcategories)
+- Shareable tour summary card
+- Oil change history list with per-entry delete
 - Offline-first data via Drift with manual sync control
 - MVVM architecture with Provider
 - Firestore persistence + Google sign-in
@@ -74,17 +77,22 @@ flutter run
 - Tap the camera icon on the current mileage field.
 - Capture the dashboard, confirm the detected mileage, then save.
 
+## Oil Change History
+- The history list lives inside the Oil Change screen.
+- Delete entries individually using the trash icon on each card.
+
 ## Offline Sync
 - All data is written locally first and synced to Firestore when online.
 - Use the manual "Sync now" action in the drawer to force a push/pull.
 - Tour drafts are saved locally so in-progress entries survive restarts.
 
-## Tour Tracker
-The Tour Tracker helps log fuel usage per ride and summarizes each trip.
+## Tour Expense Tracker
+The Tour Expense Tracker logs fuel usage and extra expenses per ride.
 
 ### How to use
 - Enter a tour title (optional), start mileage, and end mileage.
 - Add fuel stops with amount and liters; location is captured when available.
+- Add other expenses with category (Group collection / Others) and optional subcategory for Others.
 - Review totals (distance, fuel, spend, average).
 - Tap "Complete Tour" to save and archive the tour.
 
@@ -92,6 +100,9 @@ The Tour Tracker helps log fuel usage per ride and summarizes each trip.
 - Drafts auto-save locally as you type.
 - Closing or restarting the app keeps the draft.
 - Draft clears only after completing the tour.
+
+### Sharing
+- Open a saved tour to share the summary card (in-app style) as an image.
 
 ## Troubleshooting
 - If you see a Drift "no such table" error after an update, fully restart the app. If it persists, clear app data once so the latest schema applies.

@@ -32,17 +32,25 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(AppColors.transparent),
-      body: IndexedStack(index: _selectedIndex, children: const [OilChangeScreen(), TourScreen()]),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: const [TourScreen(), OilChangeScreen()],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
+          final navigator = Navigator.of(context);
+          if (navigator.canPop()) {
+            navigator.popUntil((route) => route.isFirst);
+          }
+          FocusManager.instance.primaryFocus?.unfocus();
           setState(() {
             _selectedIndex = index;
           });
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.oil_barrel_outlined), label: AppStrings.appTitle),
           BottomNavigationBarItem(icon: Icon(Icons.map_outlined), label: AppStrings.tourTab),
+          BottomNavigationBarItem(icon: Icon(Icons.oil_barrel_outlined), label: AppStrings.appTitle),
         ],
       ),
     );

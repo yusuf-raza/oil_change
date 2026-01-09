@@ -9,6 +9,7 @@ import 'oil_storage.dart';
 abstract class TourRepositoryBase {
   Future<List<TourEntry>> fetchTours();
   Future<TourEntry> saveTour(TourEntry entry);
+  Future<TourEntry> updateTour(TourEntry entry);
   Future<void> deleteTour(String id);
 }
 
@@ -109,12 +110,61 @@ class TourRepository implements TourRepositoryBase {
         totalLiters: entry.totalLiters,
         totalSpendPkr: entry.totalSpendPkr,
         stops: entry.stops,
+        expenses: entry.expenses,
+        startAt: entry.startAt,
+        endAt: entry.endAt,
       );
     } on FirebaseException catch (error) {
       logger.e('Firestore saveTour failed: ${error.code} ${error.message}');
       rethrow;
     } catch (error) {
       logger.e('Firestore saveTour failed: $error');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<TourEntry> updateTour(TourEntry entry) async {
+    if (entry.id.isEmpty) {
+      return saveTour(entry);
+    }
+    try {
+      final doc = await _docRef();
+      final snapshot = await doc.get();
+      final data = snapshot.data();
+      final raw = data?[OilStorageKeys.tourHistory];
+      final existing = <Map<String, dynamic>>[];
+      if (raw is List) {
+        for (final item in raw) {
+          if (item is Map) {
+            existing.add(Map<String, dynamic>.from(item));
+          }
+        }
+      }
+      final payload = {
+        ...entry.toMap(),
+        'id': entry.id,
+      };
+      final index =
+          existing.indexWhere((item) => item['id']?.toString() == entry.id);
+      if (index >= 0) {
+        existing[index] = payload;
+      } else {
+        existing.insert(0, payload);
+      }
+      await doc.set(
+        {
+          OilStorageKeys.tourHistory: existing,
+        },
+        SetOptions(merge: true),
+      );
+      logger.i('Firestore updateTour doc=${doc.path} id=${entry.id}');
+      return entry;
+    } on FirebaseException catch (error) {
+      logger.e('Firestore updateTour failed: ${error.code} ${error.message}');
+      rethrow;
+    } catch (error) {
+      logger.e('Firestore updateTour failed: $error');
       rethrow;
     }
   }

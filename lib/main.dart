@@ -109,7 +109,19 @@ class OilChangeApp extends StatelessWidget {
       textTheme: GoogleFonts.spaceGroteskTextTheme(),
     );
     final darkTheme = ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(AppColors.darkSeed), brightness: Brightness.dark),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(AppColors.darkSeed),
+        brightness: Brightness.dark,
+      ).copyWith(
+        primary: const Color(AppColors.darkSeed),
+        secondary: const Color(0xFF8C6B3D),
+        surface: const Color(AppColors.darkSurface),
+        background: const Color(AppColors.darkBackgroundStart),
+        error: const Color(AppColors.danger),
+        outline: const Color(0xFF3A3126),
+        outlineVariant: const Color(AppColors.darkField),
+        onSurfaceVariant: const Color(AppColors.darkSubtitle),
+      ),
       useMaterial3: true,
       scaffoldBackgroundColor: const Color(AppColors.transparent),
       textTheme: GoogleFonts.spaceGroteskTextTheme(ThemeData(brightness: Brightness.dark).textTheme),
@@ -153,16 +165,18 @@ class OilChangeApp extends StatelessWidget {
               ),
             ),
           ],
-          child: Consumer<OilViewModel>(
-            builder: (context, viewModel, child) {
-              final themeMode = viewModel.themeMode == AppThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
+          child: Selector<OilViewModel, AppThemeMode>(
+            selector: (context, viewModel) => viewModel.themeMode,
+            builder: (context, themeMode, child) {
+              final resolvedTheme =
+                  themeMode == AppThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
 
               return MaterialApp(
                 title: AppStrings.appTitle,
                 debugShowCheckedModeBanner: false,
                 theme: lightTheme,
                 darkTheme: darkTheme,
-                themeMode: themeMode,
+                themeMode: resolvedTheme,
                 home: const HomeScreen(),
               );
             },

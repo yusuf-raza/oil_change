@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 
 import '../../constants/app_colors.dart';
 import '../../constants/app_strings.dart';
+import '../../viewmodels/history_view_model.dart';
 import '../../viewmodels/oil_change_view_model.dart';
 import '../../viewmodels/oil_view_model.dart';
 import '../../services/offline_sync_service.dart';
 import '../home/widgets/home_drawer.dart';
 import '../home/widgets/status_pill.dart';
+import '../history_screen/widgets/history_entry_card.dart';
 
 class OilChangeScreen extends StatefulWidget {
   const OilChangeScreen({super.key});
@@ -19,11 +21,13 @@ class OilChangeScreen extends StatefulWidget {
 
 class _OilChangeScreenState extends State<OilChangeScreen> {
   late final OilChangeViewModel _viewModel;
+  late final HistoryViewModel _historyViewModel;
 
   @override
   void initState() {
     super.initState();
     _viewModel = OilChangeViewModel(oilViewModel: context.read<OilViewModel>());
+    _historyViewModel = HistoryViewModel(context.read<OilViewModel>());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _viewModel.ensureLoaded();
     });
@@ -32,6 +36,7 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
   @override
   void dispose() {
     _viewModel.dispose();
+    _historyViewModel.dispose();
     super.dispose();
   }
 
@@ -237,18 +242,21 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
                                       return null;
                                     }
 
-                                    final controller = TextEditingController(text: detected?.toString() ?? '');
+                                    var inputValue = detected?.toString() ?? '';
                                     final confirmed = await showDialog<int>(
                                       context: context,
                                       builder: (context) {
                                         return AlertDialog(
                                           title: const Text(AppStrings.confirmMileageTitle),
-                                          content: TextField(
-                                            controller: controller,
+                                          content: TextFormField(
+                                            initialValue: inputValue,
                                             keyboardType: TextInputType.number,
                                             decoration: const InputDecoration(
                                               labelText: AppStrings.confirmMileageLabel,
                                             ),
+                                            onChanged: (value) {
+                                              inputValue = value;
+                                            },
                                           ),
                                           actions: [
                                             TextButton(
@@ -257,7 +265,7 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
                                             ),
                                             ElevatedButton(
                                               onPressed: () {
-                                                final value = int.tryParse(controller.text.trim());
+                                                final value = int.tryParse(inputValue.trim());
                                                 Navigator.of(context).pop(value);
                                               },
                                               child: const Text(AppStrings.save),
@@ -266,7 +274,6 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
                                         );
                                       },
                                     );
-                                    controller.dispose();
                                     return confirmed;
                                   },
                                 );
@@ -295,18 +302,21 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
                                       return null;
                                     }
 
-                                    final controller = TextEditingController(text: detected?.toString() ?? '');
+                                    var inputValue = detected?.toString() ?? '';
                                     final confirmed = await showDialog<int>(
                                       context: context,
                                       builder: (context) {
                                         return AlertDialog(
                                           title: const Text(AppStrings.confirmMileageTitle),
-                                          content: TextField(
-                                            controller: controller,
+                                          content: TextFormField(
+                                            initialValue: inputValue,
                                             keyboardType: TextInputType.number,
                                             decoration: const InputDecoration(
                                               labelText: AppStrings.confirmLastChangeLabel,
                                             ),
+                                            onChanged: (value) {
+                                              inputValue = value;
+                                            },
                                           ),
                                           actions: [
                                             TextButton(
@@ -315,7 +325,7 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
                                             ),
                                             ElevatedButton(
                                               onPressed: () {
-                                                final value = int.tryParse(controller.text.trim());
+                                                final value = int.tryParse(inputValue.trim());
                                                 Navigator.of(context).pop(value);
                                               },
                                               child: const Text(AppStrings.save),
@@ -324,7 +334,6 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
                                         );
                                       },
                                     );
-                                    controller.dispose();
                                     return confirmed;
                                   },
                                 );
@@ -442,6 +451,48 @@ class _OilChangeScreenState extends State<OilChangeScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                        const SizedBox(height: 24),
+                        AnimatedBuilder(
+                          animation: _historyViewModel,
+                          builder: (context, child) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '🧾 ${AppStrings.historyTitle}',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 8),
+                                if (!_historyViewModel.hasHistory)
+                                  Text(
+                                    AppStrings.historyEmpty,
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                  )
+                                else
+                                  ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemBuilder: (context, index) {
+                                      final display = _historyViewModel.buildEntryDisplay(
+                                        index,
+                                        MaterialLocalizations.of(context),
+                                      );
+                                      return HistoryEntryCard(
+                                        display: display,
+                                        onDelete: () async {
+                                          await _historyViewModel.deleteEntry(index);
+                                        },
+                                      );
+                                    },
+                                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                                    itemCount: _historyViewModel.history.length,
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
                     ],
                   ),
                 ),

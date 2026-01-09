@@ -56,7 +56,32 @@ class LocalTourRepository implements TourRepositoryBase {
       totalLiters: entry.totalLiters,
       totalSpendPkr: entry.totalSpendPkr,
       stops: entry.stops,
+      expenses: entry.expenses,
+      startAt: entry.startAt,
+      endAt: entry.endAt,
     );
+  }
+
+  @override
+  Future<TourEntry> updateTour(TourEntry entry) async {
+    if (entry.id.isEmpty) {
+      return saveTour(entry);
+    }
+    _logger.i('LocalTourRepository.updateTour: update local tour id=${entry.id}');
+    final existing = await _readToursRaw();
+    final payload = {
+      ...entry.toMap(),
+      'id': entry.id,
+    };
+    final index =
+        existing.indexWhere((item) => item['id']?.toString() == entry.id);
+    if (index >= 0) {
+      existing[index] = payload;
+    } else {
+      existing.insert(0, payload);
+    }
+    await _saveToursRaw(existing, dirty: true);
+    return entry;
   }
 
   @override

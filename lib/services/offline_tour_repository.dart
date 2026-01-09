@@ -47,10 +47,21 @@ class OfflineTourRepository implements TourRepositoryBase {
             totalLiters: entry.totalLiters,
             totalSpendPkr: entry.totalSpendPkr,
             stops: entry.stops,
+            expenses: entry.expenses,
+            startAt: entry.startAt,
+            endAt: entry.endAt,
           )
         : entry;
     final saved = await _local.saveTour(seeded);
     unawaited(_pushRemoteSave(saved));
+    return saved;
+  }
+
+  @override
+  Future<TourEntry> updateTour(TourEntry entry) async {
+    _logger.i('OfflineTourRepository.updateTour: update local tour id=${entry.id}');
+    final saved = await _local.updateTour(entry);
+    unawaited(_pushRemoteUpdate(saved));
     return saved;
   }
 
@@ -100,6 +111,17 @@ class OfflineTourRepository implements TourRepositoryBase {
       await _local.markSynced();
     } catch (_) {
       _logger.i('OfflineTourRepository._pushRemoteDelete: remote delete failed');
+      // Keep local dirty for later sync.
+    }
+  }
+
+  Future<void> _pushRemoteUpdate(TourEntry entry) async {
+    try {
+      _logger.i('OfflineTourRepository._pushRemoteUpdate: push to remote');
+      await _remote.updateTour(entry).timeout(const Duration(seconds: 5));
+      await _local.markSynced();
+    } catch (_) {
+      _logger.i('OfflineTourRepository._pushRemoteUpdate: remote push failed');
       // Keep local dirty for later sync.
     }
   }

@@ -9,6 +9,7 @@ import '../constants/app_strings.dart';
 import '../data/local/local_tour_draft_repository.dart';
 import '../models/enums.dart';
 import '../models/fuel_stop.dart';
+import '../models/tour_expense.dart';
 import '../models/tour_entry.dart';
 import '../services/location_service.dart';
 import '../services/ocr_service.dart';
@@ -51,6 +52,8 @@ class TourViewModel extends ChangeNotifier {
     endMileageController.addListener(_onDraftChanged);
     fuelAmountController.addListener(_onDraftChanged);
     fuelLitersController.addListener(_onDraftChanged);
+    expenseAmountController.addListener(_onDraftChanged);
+    expenseSubcategoryController.addListener(_onDraftChanged);
   }
 
   final LocationServiceBase _locationService;
@@ -63,8 +66,14 @@ class TourViewModel extends ChangeNotifier {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController fuelAmountController = TextEditingController();
   final TextEditingController fuelLitersController = TextEditingController();
+  final TextEditingController expenseAmountController = TextEditingController();
+  final TextEditingController expenseSubcategoryController =
+      TextEditingController();
 
   final List<FuelStop> _stops = [];
+  final List<TourExpense> _expenses = [];
+  String _expenseCategory = AppStrings.tourExtraExpenseGroupCategory;
+  DateTime? _tourStartAt;
   final List<TourEntry> _tours = [];
   bool _isSaving = false;
   bool _isLoading = false;
@@ -76,12 +85,19 @@ class TourViewModel extends ChangeNotifier {
   Timer? _draftSaveTimer;
 
   List<FuelStop> get stops => List.unmodifiable(_stops);
+  List<TourExpense> get expenses => List.unmodifiable(_expenses);
   List<TourEntry> get tours => List.unmodifiable(_tours);
   bool get isSaving => _isSaving;
   bool get isLoading => _isLoading;
   bool get isAddingStop => _isAddingStop;
   String? get deletingTourId => _deletingTourId;
   String? get lastError => _lastError;
+  String get expenseCategory => _expenseCategory;
+
+  List<String> get expenseCategories => const [
+        AppStrings.tourExtraExpenseGroupCategory,
+        AppStrings.tourExtraExpenseOtherCategory,
+      ];
 
   int? get distanceKm {
     final start = _parseInt(startMileageController.text);
@@ -99,6 +115,21 @@ class TourViewModel extends ChangeNotifier {
   double get totalSpendPkr =>
       _stops.fold(0, (sum, stop) => sum + stop.amountPkr);
 
+  double get totalOtherSpendPkr =>
+      _expenses.fold(0, (sum, expense) => sum + expense.amountPkr);
+
+  void setExpenseCategory(String? category) {
+    if (category == null || category == _expenseCategory) {
+      return;
+    }
+    _expenseCategory = category;
+    if (_expenseCategory != AppStrings.tourExtraExpenseOtherCategory) {
+      expenseSubcategoryController.clear();
+    }
+    _notifyListeners();
+    _onDraftChanged();
+  }
+
   Future<String?> addFuelStop() async {
     if (_isAddingStop) {
       return null;
@@ -114,6 +145,9 @@ class TourViewModel extends ChangeNotifier {
     _isAddingStop = true;
     _notifyListeners();
     final timestamp = DateTime.now();
+    if (_stops.isEmpty && _tourStartAt == null) {
+      _tourStartAt = timestamp;
+    }
     _stops.add(
       FuelStop(
         amountPkr: amount,
@@ -128,6 +162,41 @@ class TourViewModel extends ChangeNotifier {
     _updateStopLocation(_stops.length - 1, timestamp);
     _onDraftChanged();
     return null;
+  }
+
+  Future<String?> addExpense() async {
+    final amount = _parseDouble(expenseAmountController.text);
+    if (amount == null || amount <= 0) {
+      return AppStrings.tourExtraExpenseError;
+    }
+    final subcategory = expenseSubcategoryController.text.trim();
+    final effectiveSubcategory = _expenseCategory ==
+            AppStrings.tourExtraExpenseOtherCategory
+        ? (subcategory.isEmpty ? null : subcategory)
+        : null;
+    _expenses.add(
+      TourExpense(
+        title: _expenseCategory,
+        amountPkr: amount,
+        createdAt: DateTime.now(),
+        category: _expenseCategory,
+        subcategory: effectiveSubcategory,
+      ),
+    );
+    expenseAmountController.clear();
+    expenseSubcategoryController.clear();
+    _notifyListeners();
+    _onDraftChanged();
+    return null;
+  }
+
+  void removeExpense(int index) {
+    if (index < 0 || index >= _expenses.length) {
+      return;
+    }
+    _expenses.removeAt(index);
+    notifyListeners();
+    _onDraftChanged();
   }
 
   Future<void> _updateStopLocation(int index, DateTime timestamp) async {
@@ -228,7 +297,12 @@ class TourViewModel extends ChangeNotifier {
     endMileageController.clear();
     fuelAmountController.clear();
     fuelLitersController.clear();
+    expenseAmountController.clear();
+    expenseSubcategoryController.clear();
+    _expenseCategory = AppStrings.tourExtraExpenseGroupCategory;
+    _tourStartAt = null;
     _stops.clear();
+    _expenses.clear();
     notifyListeners();
   }
 
@@ -272,6 +346,9 @@ class TourViewModel extends ChangeNotifier {
         totalLiters: summary.totalLiters,
         totalSpendPkr: summary.totalSpendPkr,
         stops: List<FuelStop>.from(_stops),
+        expenses: List<TourExpense>.from(_expenses),
+        startAt: _tourStartAt,
+        endAt: DateTime.now(),
       );
       final saved = await _repository.saveTour(entry);
       _tours.insert(0, saved);
@@ -342,9 +419,23 @@ class TourViewModel extends ChangeNotifier {
       endMileageController.text = (draft['endMileage'] as String?) ?? '';
       fuelAmountController.text = (draft['fuelAmount'] as String?) ?? '';
       fuelLitersController.text = (draft['fuelLiters'] as String?) ?? '';
+      expenseAmountController.text = (draft['expenseAmount'] as String?) ?? '';
+      expenseSubcategoryController.text =
+          (draft['expenseSubcategory'] as String?) ?? '';
+      final category = draft['expenseCategory'];
+      if (category is String && expenseCategories.contains(category)) {
+        _expenseCategory = category;
+      }
+      final startAt = draft['tourStartAt'];
+      if (startAt is int) {
+        _tourStartAt = DateTime.fromMillisecondsSinceEpoch(startAt);
+      }
       _stops
         ..clear()
         ..addAll(_readDraftStops(draft['stops']));
+      _expenses
+        ..clear()
+        ..addAll(_readDraftExpenses(draft['expenses']));
       _notifyListeners();
     } finally {
       _isRestoringDraft = false;
@@ -361,7 +452,12 @@ class TourViewModel extends ChangeNotifier {
       'endMileage': endMileageController.text.trim(),
       'fuelAmount': fuelAmountController.text.trim(),
       'fuelLiters': fuelLitersController.text.trim(),
+      'expenseAmount': expenseAmountController.text.trim(),
+      'expenseCategory': _expenseCategory,
+      'expenseSubcategory': expenseSubcategoryController.text.trim(),
+      'tourStartAt': _tourStartAt?.millisecondsSinceEpoch,
       'stops': _stops.map((stop) => stop.toMap()).toList(),
+      'expenses': _expenses.map((expense) => expense.toMap()).toList(),
     };
     await _draftRepository!.saveDraft(data);
   }
@@ -389,6 +485,22 @@ class TourViewModel extends ChangeNotifier {
     return stops;
   }
 
+  List<TourExpense> _readDraftExpenses(dynamic raw) {
+    if (raw is! List) {
+      return [];
+    }
+    final expenses = <TourExpense>[];
+    for (final item in raw) {
+      if (item is Map) {
+        final expense = TourExpense.fromMap(Map<String, dynamic>.from(item));
+        if (expense != null) {
+          expenses.add(expense);
+        }
+      }
+    }
+    return expenses;
+  }
+
   void _notifyListeners() {
     if (_isDisposed) {
       return;
@@ -405,12 +517,16 @@ class TourViewModel extends ChangeNotifier {
     endMileageController.removeListener(_onDraftChanged);
     fuelAmountController.removeListener(_onDraftChanged);
     fuelLitersController.removeListener(_onDraftChanged);
+    expenseAmountController.removeListener(_onDraftChanged);
+    expenseSubcategoryController.removeListener(_onDraftChanged);
     _draftSaveTimer?.cancel();
     startMileageController.dispose();
     endMileageController.dispose();
     titleController.dispose();
     fuelAmountController.dispose();
     fuelLitersController.dispose();
+    expenseAmountController.dispose();
+    expenseSubcategoryController.dispose();
     _isDisposed = true;
     super.dispose();
   }

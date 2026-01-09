@@ -1,7 +1,8 @@
 class AppStrings {
   static const appTitle = 'Oil Change';
   static const headline = 'Oil Change';
-  static const subtitle = 'Keep your engine smooth with a simple reminder.';
+  static const signInTitle = 'RidePals';
+  static const subtitle = 'Track rides, fuel, and expenses with friends.';
   static const settingsTitle = 'Settings';
   static const unitsTitle = 'Units';
   static const themeTitle = 'Theme';
@@ -15,8 +16,8 @@ class AppStrings {
   static const clearHistoryTitle = 'Clear history?';
   static const clearHistoryBody = 'This removes all saved oil change entries.';
   static const historyLocationUnknown = 'Location unknown';
-  static const tourTitle = 'Tour Tracker';
-  static const tourSubtitle = 'Track mileage and fuel stops per ride.';
+  static const tourTitle = 'Tour expense tracker';
+  static const tourSubtitle = 'Track mileage, fuel, and other expenses per ride.';
   static const tourTitleLabel = 'Tour title';
   static const tourMileageTitle = 'Tour mileage';
   static const tourStartMileage = 'Start odometer';
@@ -30,8 +31,8 @@ class AppStrings {
   static const tourNoStops = 'No fuel stops added yet.';
   static const tourComplete = 'Complete tour';
   static const tourSummaryHeader = 'Summary';
-  static const tourSummaryMileage = 'Mileage:';
-  static const tourSummaryAverage = 'Avg fuel:';
+  static const tourSummaryMileage = 'Total distance covered:';
+  static const tourSummaryAverage = 'Average fuel consumed:';
   static const tourSummaryFuel = 'Total fuel:';
   static const tourSummarySpend = 'Total spend:';
   static const tourSummaryError =
@@ -47,8 +48,22 @@ class AppStrings {
   static const tourDelete = 'Delete';
   static const tourDeleteTitle = 'Delete this tour?';
   static const tourDeleteBody = 'This cannot be undone.';
+  static const tourExtraExpensesTitle = 'Other expenses';
+  static const tourExtraExpenseAmountLabel = 'Amount (PKR)';
+  static const tourExtraExpenseCategoryLabel = 'Category';
+  static const tourExtraExpenseAdd = 'Add expense';
+  static const tourExtraExpenseRemove = 'Remove expense';
+  static const tourExtraExpenseEmpty = 'No other expenses added yet.';
+  static const tourExtraExpenseError = 'Enter a positive amount.';
+  static const tourExtraExpenseSubcategoryLabel = 'Subcategory (optional)';
+  static const tourExtraExpenseUncategorized = 'Uncategorized';
+  static const tourExtraExpenseGroupCategory = 'Group collection';
+  static const tourExtraExpenseOtherCategory = 'Others';
+  static const tourExpenseCombinedTotalLabel = 'Total spent:';
+  static const share = 'Share';
+  static const shareFailed = 'Unable to share right now.';
   static const homeTab = 'Home';
-  static const tourTab = 'Tour';
+  static const tourTab = 'Tour expense tracker';
   static const tourFuelStopError = 'Enter both amount and liters.';
   static const tourFuelStopPositiveError =
       'Amount and liters must be greater than zero.';
@@ -106,7 +121,7 @@ class AppStrings {
   static const notificationSoonSuffix = 'remaining.';
 
   static const notificationChannelId = 'oil_change_reminders';
-  static const notificationChannelName = 'Oil Change Reminders';
+  static const notificationChannelName = 'RidePals Reminders';
   static const notificationChannelDescription =
       'Notifications for upcoming oil changes';
   static const oilChangeTaskName = 'oilChangeReminderTask';

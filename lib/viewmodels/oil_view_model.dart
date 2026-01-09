@@ -216,6 +216,15 @@ class OilViewModel extends ChangeNotifier {
     _notifyListeners();
   }
 
+  Future<void> deleteHistoryAt(int index) async {
+    if (index < 0 || index >= _history.length) {
+      return;
+    }
+    _history.removeAt(index);
+    await _safePersist();
+    _notifyListeners();
+  }
+
   Future<void> updateUnit(OilUnit unit) async {
     if (unit == _unit) {
       return;

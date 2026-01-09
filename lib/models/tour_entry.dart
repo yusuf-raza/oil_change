@@ -1,4 +1,5 @@
 import 'fuel_stop.dart';
+import 'tour_expense.dart';
 
 class TourEntry {
   const TourEntry({
@@ -12,6 +13,9 @@ class TourEntry {
     required this.totalLiters,
     required this.totalSpendPkr,
     required this.stops,
+    this.expenses = const [],
+    this.startAt,
+    this.endAt,
   });
 
   final String id;
@@ -24,6 +28,9 @@ class TourEntry {
   final double totalLiters;
   final double totalSpendPkr;
   final List<FuelStop> stops;
+  final List<TourExpense> expenses;
+  final DateTime? startAt;
+  final DateTime? endAt;
 
   Map<String, dynamic> toMap() {
     return {
@@ -37,6 +44,9 @@ class TourEntry {
       'total_liters': totalLiters,
       'total_spend_pkr': totalSpendPkr,
       'stops': stops.map((stop) => stop.toMap()).toList(),
+      'expenses': expenses.map((expense) => expense.toMap()).toList(),
+      if (startAt != null) 'start_at': startAt!.millisecondsSinceEpoch,
+      if (endAt != null) 'end_at': endAt!.millisecondsSinceEpoch,
     };
   }
 
@@ -51,6 +61,9 @@ class TourEntry {
     final totalLiters = data['total_liters'];
     final totalSpend = data['total_spend_pkr'];
     final stopsRaw = data['stops'];
+    final expensesRaw = data['expenses'];
+    final startAt = data['start_at'];
+    final endAt = data['end_at'];
     if (createdAt is! int ||
         title is! String ||
         startMileage is! int ||
@@ -67,6 +80,17 @@ class TourEntry {
         final stop = FuelStop.fromMap(Map<String, dynamic>.from(item));
         if (stop != null) {
           stops.add(stop);
+        }
+      }
+    }
+    final expenses = <TourExpense>[];
+    if (expensesRaw is List) {
+      for (final item in expensesRaw) {
+        if (item is Map) {
+          final expense = TourExpense.fromMap(Map<String, dynamic>.from(item));
+          if (expense != null) {
+            expenses.add(expense);
+          }
         }
       }
     }
@@ -91,6 +115,31 @@ class TourEntry {
       totalLiters: totalLiters.toDouble(),
       totalSpendPkr: totalSpend.toDouble(),
       stops: stops,
+      expenses: expenses,
+      startAt: startAt is int ? DateTime.fromMillisecondsSinceEpoch(startAt) : null,
+      endAt: endAt is int ? DateTime.fromMillisecondsSinceEpoch(endAt) : null,
+    );
+  }
+
+  TourEntry copyWith({
+    List<TourExpense>? expenses,
+    DateTime? startAt,
+    DateTime? endAt,
+  }) {
+    return TourEntry(
+      id: id,
+      createdAt: createdAt,
+      title: title,
+      unit: unit,
+      startMileage: startMileage,
+      endMileage: endMileage,
+      distanceKm: distanceKm,
+      totalLiters: totalLiters,
+      totalSpendPkr: totalSpendPkr,
+      stops: stops,
+      expenses: expenses ?? this.expenses,
+      startAt: startAt ?? this.startAt,
+      endAt: endAt ?? this.endAt,
     );
   }
 }

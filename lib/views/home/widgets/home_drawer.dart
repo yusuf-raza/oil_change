@@ -4,7 +4,6 @@ import '../../../constants/app_strings.dart';
 import '../../../models/enums.dart';
 import '../../../services/auth_service.dart';
 import '../../../viewmodels/oil_view_model.dart';
-import '../../history_screen/history_screen.dart';
 
 class HomeDrawer extends StatelessWidget {
   const HomeDrawer({
@@ -161,15 +160,6 @@ class HomeDrawer extends StatelessWidget {
               },
             ),
             const Divider(height: 24),
-            ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              title: const Text(AppStrings.historyTitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).push(MaterialPageRoute<void>(builder: (context) => const HistoryScreen()));
-              },
-            ),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               title: const Text(AppStrings.syncNow),
